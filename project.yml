@@ -1,0 +1,64 @@
+name: Inward
+options:
+  bundleIdPrefix: app.inward
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+packages:
+  InwardCore:
+    path: .
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+
+targets:
+  Inward:
+    type: application
+    platform: iOS
+    sources:
+      - App/Sources
+    dependencies:
+      - package: InwardCore
+        products:
+          - DesignSystem
+          - SafetyKit
+          - JournalStore
+          - CaptureKit
+          - PrivacyKit
+          - ReflectKit
+          - RecallKit
+          - PaywallKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.inward.Inward
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Inward listens only while you record. Audio is transcribed on this phone and never leaves it."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcription happens on this phone."
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+
+  InwardTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - App/Tests
+    dependencies:
+      - target: Inward
+
+schemes:
+  Inward:
+    build:
+      targets:
+        Inward: all
+    test:
+      gatherCoverageData: true
+      targets:
+        - InwardTests

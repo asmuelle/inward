@@ -1,0 +1,70 @@
+{
+  "cases": [
+    {
+      "name": "direct self-harm statement",
+      "text": "I keep thinking I should just kill myself and be done with it.",
+      "expectMatch": true,
+      "categories": ["selfHarm"]
+    },
+    {
+      "name": "hyphenated self-harm",
+      "text": "I've been close to self-harm again this week.",
+      "expectMatch": true,
+      "categories": ["selfHarm"]
+    },
+    {
+      "name": "wanting to die, mixed case and punctuation",
+      "text": "Some days I just WANT TO DIE, honestly.",
+      "expectMatch": true,
+      "categories": ["selfHarm"]
+    },
+    {
+      "name": "suicidal ideation single word",
+      "text": "Felt suicidal on the drive home.",
+      "expectMatch": true,
+      "categories": ["selfHarm"]
+    },
+    {
+      "name": "violence at home",
+      "text": "He hits me when he drinks and I'm afraid to go home.",
+      "expectMatch": true,
+      "categories": ["harmFromOthers"]
+    },
+    {
+      "name": "overdose mention",
+      "text": "Last night I almost took too many pills on purpose.",
+      "expectMatch": true,
+      "categories": ["overdose"]
+    },
+    {
+      "name": "idiom: killing it at work",
+      "text": "Honestly I have been killing it at work lately, best quarter ever.",
+      "expectMatch": false,
+      "categories": []
+    },
+    {
+      "name": "idiom: dead tired",
+      "text": "I'm dead tired after the move but weirdly happy.",
+      "expectMatch": false,
+      "categories": []
+    },
+    {
+      "name": "movie talk about suicide squad-adjacent words is fine when absent",
+      "text": "We watched a heist movie and ate too much popcorn.",
+      "expectMatch": false,
+      "categories": []
+    },
+    {
+      "name": "ordinary hard day",
+      "text": "Deadline slipped again and I snapped at Maya. I hate how I get when I'm tired.",
+      "expectMatch": false,
+      "categories": []
+    },
+    {
+      "name": "empty text",
+      "text": "",
+      "expectMatch": false,
+      "categories": []
+    }
+  ]
+}

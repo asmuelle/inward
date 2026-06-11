@@ -1,0 +1,25 @@
+included:
+  - Sources
+  - Tests
+  - App
+excluded:
+  - .build
+  - DerivedData
+  - Inward.xcodeproj
+disabled_rules:
+  - trailing_comma
+  - todo
+line_length:
+  warning: 140
+  error: 200
+identifier_name:
+  min_length: 2
+  max_length: 60
+type_body_length:
+  warning: 400
+file_length:
+  warning: 700
+  error: 800
+function_body_length:
+  warning: 50
+  error: 60

@@ -25,7 +25,7 @@ let package = Package(
         // GRDB packaged with SQLCipher Community Edition as an XCFramework, the
         // only clean way to get encrypted SQLite over SwiftPM (GRDB 7.4.1 +
         // SQLCipher 4.7.0). Pinned exactly because it is the at-rest crypto layer.
-        .package(url: "https://github.com/thebrowsercompany/GRDB.swift", exact: "3.0.1"),
+        .package(url: "https://github.com/thebrowsercompany/GRDB.swift", exact: "6.6.0"),
     ],
     targets: [
         // MARK: Modules

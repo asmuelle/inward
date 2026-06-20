@@ -26,12 +26,15 @@ build: _require-project
     xcodebuild build -project "{{app}}.xcodeproj" -scheme "{{app}}" \
         -destination "generic/platform=iOS Simulator"
 
-# Run the test suites: core SPM tests on macOS, then app tests on the simulator (when one exists)
+# Run the test suites: core SPM tests on macOS, then app tests on the simulator (when one exists).
+# StoreKit's SKTestSession does not load products on headless CI runners, so the
+# StoreKitGatewayTests E2E suite is skipped on CI (GITHUB_ACTIONS) and runs locally only.
 test:
     swift test --parallel
     @if [ -d "{{app}}.xcodeproj" ] && [ -n "{{sim}}" ]; then \
+        skip=""; [ -n "${GITHUB_ACTIONS:-}" ] && skip="-skip-testing:InwardTests/StoreKitGatewayTests"; \
         xcodebuild test -project "{{app}}.xcodeproj" -scheme "{{app}}" \
-            -destination "platform=iOS Simulator,name={{sim}}"; \
+            -destination "platform=iOS Simulator,name={{sim}}" $skip; \
     else \
         echo "Skipping simulator tests — {{app}}.xcodeproj missing (run 'just bootstrap') or no iPhone simulator available."; \
     fi

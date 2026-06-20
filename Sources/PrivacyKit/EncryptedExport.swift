@@ -23,6 +23,11 @@ public struct EncryptedArchive: Codable, Sendable, Equatable {
 
     static let currentVersion = 1
     static let kdfIdentifier = "pbkdf2-hmac-sha256"
+    /// Bounds on the archive-supplied iteration count. The floor keeps a tampered
+    /// archive from weakening the work factor; the ceiling stops a malicious archive
+    /// from pinning the CPU on `open` (a multi-billion-iteration denial of service).
+    static let minIterations = 1_000
+    static let maxIterations = 10_000_000
 }
 
 /// Passphrase-based authenticated encryption of arbitrary bytes. AES-256-GCM under
@@ -53,7 +58,8 @@ public enum EncryptedExport {
     public static func open(_ archive: EncryptedArchive, passphrase: String) throws -> Data {
         guard !passphrase.isEmpty else { throw ExportError.emptyPassphrase }
         guard archive.version == EncryptedArchive.currentVersion,
-              archive.kdf == EncryptedArchive.kdfIdentifier
+              archive.kdf == EncryptedArchive.kdfIdentifier,
+              (EncryptedArchive.minIterations ... EncryptedArchive.maxIterations).contains(archive.iterations)
         else { throw ExportError.malformedArchive }
 
         let key = PassphraseKey.deriveKey(passphrase: passphrase, salt: archive.salt, iterations: archive.iterations)

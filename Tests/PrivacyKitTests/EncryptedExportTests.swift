@@ -74,6 +74,19 @@ struct EncryptedExportTests {
             try EncryptedExport.open(future, passphrase: "real")
         }
     }
+
+    @Test("an out-of-range iteration count from a tampered archive is rejected before any derivation", arguments: [1, 999, 20_000_000])
+    func outOfRangeIterationsRejected(iterations: Int) throws {
+        let archive = try EncryptedExport.seal(Data("x".utf8), passphrase: "real", iterations: testIterations)
+        let tampered = EncryptedArchive(
+            version: archive.version, kdf: archive.kdf, iterations: iterations, salt: archive.salt, sealed: archive.sealed
+        )
+
+        // Rejected on the parameter guard — a billion-round DoS never starts.
+        #expect(throws: ExportError.malformedArchive) {
+            try EncryptedExport.open(tampered, passphrase: "real")
+        }
+    }
 }
 
 @Suite("JournalExporter — client-side-encrypted journal export")

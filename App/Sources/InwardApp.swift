@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import ReflectKit
 import SwiftUI
 
 /// Composition root only — no business logic lives in the app shell.
@@ -14,8 +15,15 @@ struct InwardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(store: store, engine: Self.makeEngine())
+            RootView(store: store, engine: Self.makeEngine(), reviewProvider: Self.makeReviewProvider())
         }
+    }
+
+    /// On-device weekly-review synthesis via FoundationModels. When Apple
+    /// Intelligence is unavailable the surface degrades to deterministic recurring
+    /// themes (handled in WeeklyReviewModel), so the feature is never empty.
+    private static func makeReviewProvider() -> any WeeklyReviewProviding {
+        FoundationModelsWeeklyReviewProvider()
     }
 
     /// The single encrypted journal file in Application Support, keyed from the

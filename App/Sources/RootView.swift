@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import ReflectKit
 import SwiftUI
 
 /// Home: the timeline of kept entries under warm paper, with the record button
@@ -8,14 +9,20 @@ import SwiftUI
 struct RootView: View {
     private let store: any JournalStoring
     private let engine: (any TranscriptionEngine)?
+    private let reviewProvider: any WeeklyReviewProviding
 
     @State private var model: TimelineModel
     @State private var isCapturing = false
     @State private var isWriting = false
 
-    init(store: any JournalStoring, engine: (any TranscriptionEngine)?) {
+    init(
+        store: any JournalStoring,
+        engine: (any TranscriptionEngine)?,
+        reviewProvider: any WeeklyReviewProviding
+    ) {
         self.store = store
         self.engine = engine
+        self.reviewProvider = reviewProvider
         _model = State(initialValue: TimelineModel(store: store))
     }
 
@@ -27,8 +34,20 @@ struct RootView: View {
                 captureBar
             }
             .navigationTitle(Copy.timelineTitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: WeeklyReviewRoute()) {
+                        Text(Copy.weeklyReviewLink)
+                    }
+                    .font(.lamplight(.chrome))
+                    .disabled(model.entries.isEmpty)
+                }
+            }
             .navigationDestination(for: Entry.self) { entry in
                 EntryDetailView(entry: entry)
+            }
+            .navigationDestination(for: WeeklyReviewRoute.self) { _ in
+                WeeklyReviewView(model: WeeklyReviewModel(store: store, provider: reviewProvider))
             }
         }
         .tint(.inwardClay)

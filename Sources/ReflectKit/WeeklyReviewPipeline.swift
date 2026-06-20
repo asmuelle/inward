@@ -80,7 +80,10 @@ public struct WeeklyReviewPipeline: Sendable {
     /// Deterministic fallback: words recurring across `minThemeDocumentFrequency`+
     /// entries, ranked by how many entries they touch (ties by the word), each
     /// carrying the real entry ids it came from. No model, no prose — auditable counts.
-    static func recurringThemes(in context: WeekContext) -> [ThemeCount] {
+    ///
+    /// Public so a surface can show recurring themes even when the model is
+    /// unavailable on the device (model-optional journaling, invariant #9).
+    public static func recurringThemes(in context: WeekContext) -> [ThemeCount] {
         var entriesByWord: [String: [UUID]] = [:]
         for entry in context.entries {
             for word in tokens(in: entry.summary) where BannedTerms.violations(in: word).isEmpty {

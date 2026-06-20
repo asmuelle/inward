@@ -45,9 +45,10 @@ A thin SwiftUI app shell (XcodeGen `project.yml`) composes local SPM packages; d
 
 ## Current State & First Tasks
 
-- The repo is a docs-only scaffold: no `project.yml`, no Swift sources yet. `just` recipes fail with guidance and CI's bootstrap guard keeps the pipeline green — both intentional.
-- The next unit of work is **M0** (DESIGN.md): `project.yml` + the eight SPM package stubs, each with one passing test, until `just bootstrap && just ci` is green locally and in Actions.
-- Do not modify `README.md` — it is the frozen research dossier this scaffold was derived from.
+- **M0 ✅ and M1 ✅ have landed.** The repo is a working app, not a docs-only scaffold: `project.yml` plus the eight SPM modules under `Sources/` (CaptureKit, JournalStore, RecallKit, ReflectKit, SafetyKit, PrivacyKit, PaywallKit, DesignSystem), each with tests under `Tests/`, and the `Inward` app shell under `App/`. The M1 vertical slice (voice → SpeechTranscriber transcript → edit → encrypted entry → timeline → reopen, with text-entry fallback) is in place.
+- M1 ships `EncryptedFileJournalStore` (single AES-GCM-sealed file via CryptoKit, key in the keychain, `NSFileProtectionComplete`) behind the `JournalStoring` protocol as a deliberate stopgap. **M2 swaps in the real GRDB + SQLCipher store behind the same protocol** without touching callers.
+- **The next unit of work is M2 (trust layer)** (DESIGN.md): ReflectKit weekly reviews with verified entry-ID citations; SafetyKit crisis gate live ahead of *every* model call; PrivacyKit no-egress harness wired into `just test`; biometric lock; client-side-encrypted export; the airplane-mode proof screen; banned-terms (ComplianceTests) running over all user-facing strings in CI. M3 (StoreKit 2 monetization) follows — `PaywallKit` currently holds only `EntitlementPolicy`.
+- Do not modify `README.md` — it is the frozen research dossier this scaffold was derived from. Note it still uses the "CBT" framing as *internal research vocabulary only*; that wording must never reach user-facing copy, App Store metadata, the GitHub description/topics, or any other marketing surface (invariant #1).
 - Do not add dependencies that open network paths (analytics, crash reporters, remote config). If a library wants the network, it does not belong here.
 - When in doubt about scope or wording, the legal framing in DESIGN.md ("Hard Constraint") and the invariants below decide.
 

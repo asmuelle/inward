@@ -14,6 +14,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
     var audioFileRef: String?
     var transcriptRaw: String
     var textEdited: String
+    var summary: String
     var durationSec: Double?
     var mood: String?
     var locale: String
@@ -25,6 +26,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
         audioFileRef = entry.audioFileRef
         transcriptRaw = entry.transcriptRaw
         textEdited = entry.textEdited
+        summary = entry.summary
         durationSec = entry.durationSec
         mood = entry.mood
         locale = entry.locale
@@ -43,6 +45,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
             audioFileRef: audioFileRef,
             transcriptRaw: transcriptRaw,
             textEdited: textEdited,
+            summary: summary,
             durationSec: durationSec,
             mood: mood,
             locale: locale
@@ -95,6 +98,13 @@ enum JournalSchema {
                 t.column("engine", .text).notNull()
                 t.column("confidence", .double).notNull()
                 t.column("completedAt", .datetime).notNull()
+            }
+        }
+        // Precomputed per-entry summary. Existing rows backfill to empty; they are
+        // re-summarized whenever their text is next edited.
+        migrator.registerMigration("v2-entry-summary") { db in
+            try db.alter(table: EntryRecord.databaseTableName) { t in
+                t.add(column: "summary", .text).notNull().defaults(to: "")
             }
         }
         return migrator

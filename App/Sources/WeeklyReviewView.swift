@@ -68,20 +68,9 @@ final class WeeklyReviewModel {
 
     func entry(for id: UUID) -> Entry? { entriesByID[id] }
 
+    /// Uses the summary precomputed and stored at save time (JournalStore.EntrySummary).
     static func reviewable(_ entry: Entry) -> ReviewableEntry {
-        ReviewableEntry(id: entry.id, createdAt: entry.createdAt, summary: summarize(entry.textEdited))
-    }
-
-    /// A short stand-in summary: the first sentence, or a clipped opening. The
-    /// precompute-at-save summary planned in DESIGN.md replaces this later.
-    static func summarize(_ text: String) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return trimmed }
-        if let end = trimmed.firstIndex(where: { ".!?".contains($0) }) {
-            let sentence = trimmed[...end].trimmingCharacters(in: .whitespacesAndNewlines)
-            if sentence.count >= 8 { return sentence }
-        }
-        return String(trimmed.prefix(160))
+        ReviewableEntry(id: entry.id, createdAt: entry.createdAt, summary: entry.summary)
     }
 }
 

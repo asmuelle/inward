@@ -38,6 +38,25 @@ struct SQLCipherJournalStoreTests {
         #expect(try await store.transcription(entryID: entry.id) == transcription)
     }
 
+    @Test("the precomputed summary is persisted, not recomputed on read")
+    func summaryPersists() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        // An explicit summary that differs from what EntrySummary.make would derive.
+        let entry = Entry(
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            source: .text,
+            transcriptRaw: "raw",
+            textEdited: "Some ordinary opening line here.",
+            summary: "a pinned summary",
+            locale: "en_US"
+        )
+        try await store.save(entry: entry, transcription: nil)
+
+        let fetched = try await store.entry(id: entry.id)
+
+        #expect(fetched?.summary == "a pinned summary")
+    }
+
     @Test("all entries come back newest first")
     func ordersNewestFirst() async throws {
         let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())

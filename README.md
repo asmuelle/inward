@@ -1,5 +1,7 @@
 # Inward
 
+[![CI](https://github.com/asmuelle/inward/actions/workflows/ci.yml/badge.svg)](https://github.com/asmuelle/inward/actions/workflows/ci.yml)
+
 > A voice-first journaling and CBT-reframing companion that is verifiably airplane-mode functional — spoken thoughts are transcribed, reflected, and stored only on the phone.
 
 **Category:** Edge AI / on-device inference (iOS + Android) 

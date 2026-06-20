@@ -62,5 +62,6 @@ schemes:
         Inward: all
     test:
       gatherCoverageData: true
+      storeKitConfiguration: App/Tests/Inward.storekit
       targets:
         - InwardTests

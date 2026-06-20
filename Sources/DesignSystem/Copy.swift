@@ -39,6 +39,46 @@ public enum Copy {
     public static let supportHeader = "If it feels heavy right now"
     public static let supportIntro = "You don't have to sit with it alone. These are always here, any hour."
 
+    // MARK: Onboarding (airplane-mode proof)
+
+    public static let onboardingTitle = "Your words stay here"
+    public static let onboardingPromise = "Everything you say or write is transcribed and kept on this phone. Nothing is uploaded — there's no account, and no server to breach."
+    public static let onboardingProofTitle = "See it for yourself"
+    public static let onboardingStep1 = "Turn on airplane mode."
+    public static let onboardingStep2 = "Record or write your first entry — it still works."
+    public static let onboardingStep3 = "Open Settings ▸ Privacy & Security ▸ App Privacy Report. Inward made no network activity."
+    public static let onboardingBegin = "Begin"
+
+    // MARK: Lock
+
+    public static let lockTitle = "Locked"
+    public static let lockSubtitle = "Your journal is yours alone."
+    public static let lockUnlock = "Unlock"
+    public static let unlockReason = "Unlock your journal"
+
+    // MARK: Settings
+
+    public static let settingsTitle = "Settings"
+    public static let settingsDone = "Done"
+    public static let settingsLockToggle = "Require Face ID or passcode"
+    public static let settingsLockFooter = "Ask for Face ID, Touch ID, or your passcode each time Inward opens. Applies the next time you open the app."
+    public static let settingsExport = "Export your journal"
+    public static let settingsExportFooter = "Save an encrypted copy you can keep anywhere. Only your passphrase can open it, so store it somewhere safe — it can't be recovered."
+    public static let settingsPrivacyFooter = "No accounts. No servers. No tracking."
+
+    // MARK: Export
+
+    public static let exportTitle = "Export your journal"
+    public static let exportHint = "Your passphrase encrypts this export. There's no way to recover it, so write it down somewhere safe."
+    public static let exportPassphrasePrompt = "Choose a passphrase"
+    public static let exportPassphraseConfirm = "Repeat your passphrase"
+    public static let exportAction = "Create encrypted export"
+    public static let exportPassphraseRequired = "Enter a passphrase first."
+    public static let exportWorking = "Encrypting…"
+    public static let exportReady = "Your encrypted journal is ready."
+    public static let exportShare = "Save or share"
+    public static let exportFailed = "Couldn't create the export. Nothing left this phone; try again."
+
     // MARK: Quiet reassurance
 
     public static let stillness = "Works in airplane mode. Nothing leaves this phone."
@@ -61,6 +101,34 @@ public enum Copy {
         voiceUnavailable,
         captureFailed,
         saveFailed,
+        onboardingTitle,
+        onboardingPromise,
+        onboardingProofTitle,
+        onboardingStep1,
+        onboardingStep2,
+        onboardingStep3,
+        onboardingBegin,
+        lockTitle,
+        lockSubtitle,
+        lockUnlock,
+        unlockReason,
+        settingsTitle,
+        settingsDone,
+        settingsLockToggle,
+        settingsLockFooter,
+        settingsExport,
+        settingsExportFooter,
+        settingsPrivacyFooter,
+        exportTitle,
+        exportHint,
+        exportPassphrasePrompt,
+        exportPassphraseConfirm,
+        exportAction,
+        exportPassphraseRequired,
+        exportWorking,
+        exportReady,
+        exportShare,
+        exportFailed,
         weeklyReviewLink,
         weeklyReviewTitle,
         weeklyReviewIntro,

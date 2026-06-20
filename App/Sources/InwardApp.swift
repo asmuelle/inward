@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import PrivacyKit
 import ReflectKit
 import SwiftUI
 
@@ -15,7 +16,12 @@ struct InwardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(store: store, engine: Self.makeEngine(), reviewProvider: Self.makeReviewProvider())
+            RootView(
+                store: store,
+                engine: Self.makeEngine(),
+                reviewProvider: Self.makeReviewProvider(),
+                authenticator: LocalAuthenticationAuthenticator()
+            )
         }
     }
 

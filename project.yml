@@ -42,6 +42,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Inward listens only while you record. Audio is transcribed on this phone and never leaves it."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcription happens on this phone."
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "Inward can use Face ID so only you can open your journal."
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"
 

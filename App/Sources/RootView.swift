@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import PrivacyKit
 import ReflectKit
 import SwiftUI
 
@@ -12,18 +13,28 @@ struct RootView: View {
     private let reviewProvider: any WeeklyReviewProviding
 
     @State private var model: TimelineModel
+    @State private var lock: LockGateModel
     @State private var isCapturing = false
     @State private var isWriting = false
+    @State private var isShowingSettings = false
+
+    @AppStorage(Prefs.hasOnboarded) private var hasOnboarded = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         store: any JournalStoring,
         engine: (any TranscriptionEngine)?,
-        reviewProvider: any WeeklyReviewProviding
+        reviewProvider: any WeeklyReviewProviding,
+        authenticator: any BiometricAuthenticating
     ) {
         self.store = store
         self.engine = engine
         self.reviewProvider = reviewProvider
         _model = State(initialValue: TimelineModel(store: store))
+        _lock = State(initialValue: LockGateModel(
+            authenticator: authenticator,
+            isEnabled: { UserDefaults.standard.bool(forKey: Prefs.lockEnabled) }
+        ))
     }
 
     var body: some View {
@@ -35,6 +46,12 @@ struct RootView: View {
             }
             .navigationTitle(Copy.timelineTitle)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { isShowingSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel(Copy.settingsTitle)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: WeeklyReviewRoute()) {
                         Text(Copy.weeklyReviewLink)
@@ -51,6 +68,35 @@ struct RootView: View {
             }
         }
         .tint(.inwardClay)
+        .overlay {
+            if lock.state == .locked {
+                LockView { Task { await lock.attemptUnlock() } }
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: Lamplight.Motion.standard), value: lock.state)
+        .fullScreenCover(isPresented: onboardingBinding) {
+            OnboardingView { hasOnboarded = true }
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(store: store)
+        }
+        .task {
+            await lock.engage()
+            if lock.state == .locked { await lock.attemptUnlock() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            Task {
+                switch phase {
+                case .background:
+                    await lock.engage()
+                case .active:
+                    if lock.state == .locked { await lock.attemptUnlock() }
+                default:
+                    break
+                }
+            }
+        }
         .task { await model.refresh() }
         .sheet(isPresented: $isCapturing, onDismiss: { Task { await model.refresh() } }) {
             CaptureView(coordinator: makeCoordinator()) {
@@ -62,6 +108,14 @@ struct RootView: View {
                 isWriting = false
             }
         }
+    }
+
+    /// Presents onboarding until it's done; dismissing marks it complete.
+    private var onboardingBinding: Binding<Bool> {
+        Binding(
+            get: { !hasOnboarded },
+            set: { presented in if !presented { hasOnboarded = true } }
+        )
     }
 
     @ViewBuilder private var timeline: some View {

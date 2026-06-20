@@ -9,12 +9,12 @@
         public init() {}
 
         public func availableProducts() async throws -> [PaywallProduct] {
-            let products = try await Product.products(for: InwardProduct.allCases.map(\.rawValue))
+            let products = try await Self.loadProducts(for: InwardProduct.allCases.map(\.rawValue))
             return products.compactMap(Self.paywallProduct)
         }
 
         public func purchase(_ productID: String) async throws -> PurchaseResult {
-            guard let product = try await Product.products(for: [productID]).first else {
+            guard let product = try await Self.loadProducts(for: [productID]).first else {
                 throw PurchaseError.productNotFound
             }
             let result = try await product.purchase()
@@ -66,6 +66,24 @@
         }
 
         // MARK: - Helpers
+
+        /// StoreKit product loading is eventually-consistent on a cold start: on a
+        /// freshly booted device or CI simulator, `Product.products(for:)` can
+        /// briefly return empty before the StoreKit configuration has synced.
+        /// Retry a bounded number of times so the paywall is robust on first
+        /// launch. Returns immediately once products are available; the final
+        /// attempt surfaces a genuine empty result or error unchanged.
+        private static func loadProducts(for ids: [String]) async throws -> [Product] {
+            for attempt in 0 ..< 10 {
+                if let products = try? await Product.products(for: ids), !products.isEmpty {
+                    return products
+                }
+                if attempt < 9 {
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+            }
+            return try await Product.products(for: ids)
+        }
 
         private static func verified<T>(_ result: VerificationResult<T>) throws -> T {
             switch result {

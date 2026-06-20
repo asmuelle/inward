@@ -2,6 +2,7 @@ import CaptureKit
 import DesignSystem
 import JournalStore
 import JournalStoreSQLCipher
+import PaywallKit
 import PrivacyKit
 import ReflectKit
 import SwiftUI
@@ -21,7 +22,9 @@ struct InwardApp: App {
                 store: store,
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
-                authenticator: LocalAuthenticationAuthenticator()
+                authenticator: LocalAuthenticationAuthenticator(),
+                purchaseGateway: StoreKitPurchaseGateway(),
+                trialStartedAt: Prefs.trialStart()
             )
         }
     }

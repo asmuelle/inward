@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import PaywallKit
 import PrivacyKit
 import ReflectKit
 import SwiftUI
@@ -14,9 +15,11 @@ struct RootView: View {
 
     @State private var model: TimelineModel
     @State private var lock: LockGateModel
+    @State private var paywall: PaywallModel
     @State private var isCapturing = false
     @State private var isWriting = false
     @State private var isShowingSettings = false
+    @State private var isShowingPaywall = false
 
     @AppStorage(Prefs.hasOnboarded) private var hasOnboarded = false
     @Environment(\.scenePhase) private var scenePhase
@@ -25,7 +28,9 @@ struct RootView: View {
         store: any JournalStoring,
         engine: (any TranscriptionEngine)?,
         reviewProvider: any WeeklyReviewProviding,
-        authenticator: any BiometricAuthenticating
+        authenticator: any BiometricAuthenticating,
+        purchaseGateway: any PurchaseGateway,
+        trialStartedAt: Date
     ) {
         self.store = store
         self.engine = engine
@@ -35,6 +40,17 @@ struct RootView: View {
             authenticator: authenticator,
             isEnabled: { UserDefaults.standard.bool(forKey: Prefs.lockEnabled) }
         ))
+        _paywall = State(initialValue: PaywallModel(gateway: purchaseGateway, trialStartedAt: trialStartedAt))
+    }
+
+    /// New writing is gated when the trial lapses without a purchase; reading,
+    /// weekly review, and export stay free (invariant #8).
+    private func beginCapture() {
+        if paywall.isLocked { isShowingPaywall = true } else { isCapturing = true }
+    }
+
+    private func beginWriting() {
+        if paywall.isLocked { isShowingPaywall = true } else { isWriting = true }
     }
 
     var body: some View {
@@ -98,6 +114,8 @@ struct RootView: View {
             }
         }
         .task { await model.refresh() }
+        .task { await paywall.refresh() }
+        .task { await paywall.observeUpdates() }
         .sheet(isPresented: $isCapturing, onDismiss: { Task { await model.refresh() } }) {
             CaptureView(coordinator: makeCoordinator()) {
                 isCapturing = false
@@ -107,6 +125,9 @@ struct RootView: View {
             WriteEntryView(coordinator: makeCoordinator()) {
                 isWriting = false
             }
+        }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView(model: paywall)
         }
     }
 
@@ -150,10 +171,10 @@ struct RootView: View {
     private var captureBar: some View {
         VStack(spacing: Lamplight.Spacing.tight) {
             RecordButton(isRecording: false) {
-                isCapturing = true
+                beginCapture()
             }
             Button(Copy.writeInstead) {
-                isWriting = true
+                beginWriting()
             }
             .font(.lamplight(.caption))
             .foregroundStyle(Color.inwardSage)

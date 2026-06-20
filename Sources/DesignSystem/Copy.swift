@@ -79,6 +79,19 @@ public enum Copy {
     public static let exportShare = "Save or share"
     public static let exportFailed = "Couldn't create the export. Nothing left this phone; try again."
 
+    // MARK: Membership / paywall
+
+    public static let paywallTitle = "Keep Inward"
+    public static let paywallSubtitle = "Unlimited writing and weekly reflections, kept on your phone. Reading and exporting your words are always free."
+    public static let paywallTrialNote = "7 days free, then your plan. Cancel anytime."
+    public static let paywallLifetimeNote = "Pay once. Yours to keep."
+    public static let paywallBestValue = "Best value"
+    public static let paywallRestore = "Restore a purchase"
+    public static let paywallClose = "Not now"
+    public static let paywallBusy = "Working…"
+    public static let paywallReassurance = "No account. No servers. Your words never leave this phone."
+    public static let membershipLink = "Membership"
+
     // MARK: Quiet reassurance
 
     public static let stillness = "Works in airplane mode. Nothing leaves this phone."
@@ -129,6 +142,16 @@ public enum Copy {
         exportReady,
         exportShare,
         exportFailed,
+        paywallTitle,
+        paywallSubtitle,
+        paywallTrialNote,
+        paywallLifetimeNote,
+        paywallBestValue,
+        paywallRestore,
+        paywallClose,
+        paywallBusy,
+        paywallReassurance,
+        membershipLink,
         weeklyReviewLink,
         weeklyReviewTitle,
         weeklyReviewIntro,

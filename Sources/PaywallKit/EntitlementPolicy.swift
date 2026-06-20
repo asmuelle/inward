@@ -27,6 +27,27 @@ public enum EntitlementPolicy {
         return remaining > 0 ? .trial(daysRemaining: remaining) : .expired
     }
 
+    /// Derives the entitlement from the set of owned product ids (active
+    /// subscriptions and/or lifetime) plus the trial clock. Pure, so the
+    /// StoreKit-to-entitlement mapping is testable without StoreKit.
+    public static func state(
+        trialStartedAt: Date,
+        now: Date,
+        ownedProductIDs: Set<String>,
+        calendar: Calendar = Calendar(identifier: .gregorian)
+    ) -> EntitlementState {
+        let hasLifetime = ownedProductIDs.contains(InwardProduct.lifetime.rawValue)
+        let hasSubscription = ownedProductIDs.contains(InwardProduct.monthly.rawValue)
+            || ownedProductIDs.contains(InwardProduct.annual.rawValue)
+        return state(
+            trialStartedAt: trialStartedAt,
+            now: now,
+            hasActiveSubscription: hasSubscription,
+            hasLifetime: hasLifetime,
+            calendar: calendar
+        )
+    }
+
     /// New captures lock when the trial lapses.
     public static func isCaptureAllowed(_ state: EntitlementState) -> Bool {
         switch state {

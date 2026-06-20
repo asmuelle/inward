@@ -51,6 +51,10 @@ format: _require-sources
 # Full gate: lint + build + test (exactly what CI runs)
 ci: lint build test
 
+# Render UI surfaces to docs/screenshots/ (uses the chosen simulator)
+screenshots: _require-project
+    ./scripts/screenshots.sh "{{sim}}"
+
 _require-project:
     @if [ ! -d "{{app}}.xcodeproj" ]; then \
         echo "{{app}}.xcodeproj not found — run 'just bootstrap' first."; \

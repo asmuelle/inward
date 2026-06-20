@@ -1,0 +1,12 @@
+Inward is a private journaling and self-reflection app. Everything runs on the device.
+
+How to verify the core promise:
+1. Enable airplane mode.
+2. Record or type an entry — capture, transcription, saving, and the weekly reflection all work with no connection.
+3. Settings ▸ Privacy & Security ▸ App Privacy Report shows no network activity from Inward.
+
+There is no account and no login, so no demo credentials are needed.
+
+In-app purchases (auto-renewable membership and a one-time lifetime option) unlock new writing and the weekly reflection after a 7-day free trial. Reading existing entries and exporting them are never gated.
+
+All inference (speech-to-text and the weekly reflection) is performed on device with Apple frameworks. The only network the app uses is StoreKit for purchases. No analytics or tracking is present; the App Privacy label is "Data Not Collected."

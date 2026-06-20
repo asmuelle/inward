@@ -56,14 +56,46 @@ struct ComplianceTests {
         #expect(scannedFiles > 10, "scan looks broken — only \(scannedFiles) files found")
     }
 
+    @Test("App Store metadata is free of the regulated vocabulary")
+    func appStoreMetadataIsClean() throws {
+        // Arrange — the listing text bound for App Store Connect (DESIGN M3:
+        // "Paywall + App Store metadata pass the banned-terms lint").
+        let metadataRoot = repoRoot().appendingPathComponent("fastlane/metadata", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: metadataRoot.path),
+              let enumerator = FileManager.default.enumerator(at: metadataRoot, includingPropertiesForKeys: nil)
+        else {
+            Issue.record("could not locate fastlane/metadata")
+            return
+        }
+
+        var scannedFiles = 0
+        for case let fileURL as URL in enumerator where fileURL.pathExtension == "txt" {
+            // Act
+            let contents = try String(contentsOf: fileURL, encoding: .utf8)
+            let violations = BannedTerms.violations(in: contents)
+
+            // Assert
+            #expect(
+                violations.isEmpty,
+                "banned term \(violations.map(\.term)) in metadata \(fileURL.lastPathComponent)"
+            )
+            scannedFiles += 1
+        }
+        #expect(scannedFiles >= 5, "metadata scan looks broken — only \(scannedFiles) files found")
+    }
+
+    /// The repository root, located relative to this test file.
+    private func repoRoot() -> URL {
+        URL(fileURLWithPath: #filePath) // .../Tests/ComplianceTests/ComplianceTests.swift
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
     /// Production source roots, located relative to this test file.
     private func sourceRoots() -> [URL] {
-        let repoRoot = URL(fileURLWithPath: #filePath) // .../Tests/ComplianceTests/ComplianceTests.swift
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        return ["Sources", "App"].compactMap { name in
-            let url = repoRoot.appendingPathComponent(name, isDirectory: true)
+        ["Sources", "App"].compactMap { name in
+            let url = repoRoot().appendingPathComponent(name, isDirectory: true)
             return FileManager.default.fileExists(atPath: url.path) ? url : nil
         }
     }

@@ -101,14 +101,36 @@ public struct WeeklyReviewPipeline: Sendable {
             .map { $0 }
     }
 
-    /// Distinct lowercased word stems of a summary, long enough to carry meaning.
-    /// Distinct-per-entry so one entry repeating a word counts once toward frequency.
+    /// Distinct lowercased words of a summary, long enough to carry meaning and not
+    /// a generic filler. Distinct-per-entry so one entry repeating a word counts
+    /// once toward frequency.
     private static func tokens(in text: String) -> Set<String> {
         Set(
             text.lowercased()
                 .split(whereSeparator: { !$0.isLetter })
                 .map(String.init)
-                .filter { $0.count >= minThemeWordLength }
+                .filter { $0.count >= minThemeWordLength && !stopwords.contains($0) }
         )
     }
+
+    /// Words that clear the length filter but are too generic to be a theme.
+    /// Without this, fillers like "coming", "really", or "things" surface as the
+    /// week's theme in the deterministic fallback.
+    static let stopwords: Set<String> = [
+        "about", "above", "after", "again", "against", "almost", "along", "already",
+        "although", "always", "among", "another", "anything", "around", "because",
+        "becomes", "before", "behind", "being", "below", "between", "beyond",
+        "coming", "could", "doing", "during", "either", "enough", "especially",
+        "every", "everyone", "everything", "getting", "going", "gonna", "having",
+        "however", "instead", "itself", "least", "little", "maybe", "might", "more",
+        "most", "much", "myself", "never", "often", "other", "others", "ourselves",
+        "perhaps", "pretty", "probably", "quite", "rather", "really", "right",
+        "seems", "should", "since", "somehow", "someone", "something", "sometimes",
+        "still", "their", "theirs", "themselves", "there", "these", "thing",
+        "things", "think", "thinking", "those", "though", "through", "today",
+        "together", "tomorrow", "tonight", "toward", "towards", "under", "until",
+        "usually", "very", "what", "whatever", "when", "where", "whether", "which",
+        "while", "whole", "will", "with", "within", "without", "would", "yeah",
+        "yesterday", "your", "yours", "yourself",
+    ]
 }

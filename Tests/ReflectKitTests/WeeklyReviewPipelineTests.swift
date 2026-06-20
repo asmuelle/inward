@@ -218,4 +218,21 @@ struct WeeklyReviewPipelineTests {
         // "deadline"/"pressure" appear in only one entry and must not be themes.
         #expect(!themes.contains { $0.theme == "deadline" })
     }
+
+    @Test("common filler words never become themes, but real words do")
+    func stopwordsAreNotThemes() {
+        let context = WeekContext(
+            weekStart: Date(timeIntervalSince1970: 0),
+            entries: [
+                Week.entry(Week.idA, 1, "I kept coming back to it, really, thinking about the garden."),
+                Week.entry(Week.idB, 2, "Coming back again, really, something about that garden."),
+            ]
+        )
+
+        let themes = WeeklyReviewPipeline.recurringThemes(in: context)
+
+        let names = Set(themes.map(\.theme))
+        #expect(names.isDisjoint(with: ["coming", "really", "thinking", "about", "again", "something"]))
+        #expect(names.contains("garden"), "a meaningful recurring word still surfaces")
+    }
 }

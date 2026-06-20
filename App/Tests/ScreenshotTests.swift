@@ -126,11 +126,13 @@ final class ScreenshotTests: XCTestCase {
         )
     }
 
+    // The recurring theme ("garden") sits in each entry's first sentence, because
+    // the weekly review summarizes entries to their opening sentence.
     static let sampleEntries: [Entry] = [
-        entry(0, "Slow morning. Coffee on the balcony before the house woke up, and for once I didn't reach for my phone."),
-        entry(1, "The garden is finally coming back. Mornings out there feel like the calmest part of the day."),
-        entry(2, "Long stretch of work, but I noticed I kept coming back to the same worry about the move."),
-        entry(3, "Walked the long way home. Quiet streets, and that garden two doors down is somehow always blooming."),
+        entry(0, "Garden mornings again — coffee outside before the house stirred, and for once I didn't reach for my phone."),
+        entry(1, "Another slow garden morning. The light came in sideways and I just sat with it for a while."),
+        entry(2, "Work pulled hard today, but my mind kept drifting back to the garden and how quiet it is out there."),
+        entry(3, "Quiet evening walk past the blooming garden two doors down. Everything felt a little softer afterward."),
     ]
 
     private static func makeStore() -> EncryptedFileJournalStore {

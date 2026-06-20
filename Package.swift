@@ -27,7 +27,7 @@ let package = Package(
         .target(name: "SafetyKit"),
         .target(name: "JournalStore"),
         .target(name: "CaptureKit", dependencies: ["JournalStore", "DesignSystem"]),
-        .target(name: "PrivacyKit"),
+        .target(name: "PrivacyKit", dependencies: ["JournalStore"]),
         .target(name: "ReflectKit", dependencies: ["SafetyKit"]),
         .target(name: "RecallKit", dependencies: ["JournalStore"]),
         .target(name: "PaywallKit"),

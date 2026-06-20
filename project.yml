@@ -30,6 +30,7 @@ targets:
           - DesignSystem
           - SafetyKit
           - JournalStore
+          - JournalStoreSQLCipher
           - CaptureKit
           - PrivacyKit
           - ReflectKit

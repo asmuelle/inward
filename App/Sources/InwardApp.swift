@@ -1,6 +1,7 @@
 import CaptureKit
 import DesignSystem
 import JournalStore
+import JournalStoreSQLCipher
 import PrivacyKit
 import ReflectKit
 import SwiftUI
@@ -8,7 +9,7 @@ import SwiftUI
 /// Composition root only — no business logic lives in the app shell.
 @main
 struct InwardApp: App {
-    private let store: EncryptedFileJournalStore
+    private let store: any JournalStoring
 
     init() {
         store = Self.makeStore()
@@ -32,15 +33,25 @@ struct InwardApp: App {
         FoundationModelsWeeklyReviewProvider()
     }
 
-    /// The single encrypted journal file in Application Support, keyed from the
-    /// device keychain. Nothing else ever touches disk.
-    private static func makeStore() -> EncryptedFileJournalStore {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        let fileURL = base
-            .appendingPathComponent("Inward", isDirectory: true)
-            .appendingPathComponent("journal.inward")
-        return EncryptedFileJournalStore(fileURL: fileURL, keyProvider: KeychainKeyProvider())
+    /// The SQLCipher-encrypted journal database in Application Support, keyed from
+    /// the device keychain. If the database cannot be opened, journaling must still
+    /// work, so it falls back to the M1 encrypted file store (invariant #9).
+    private static func makeStore() -> any JournalStoring {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            .map { $0.appendingPathComponent("Inward", isDirectory: true) }
+            ?? FileManager.default.temporaryDirectory.appendingPathComponent("Inward", isDirectory: true)
+        let keyProvider = KeychainKeyProvider()
+        do {
+            return try SQLCipherJournalStore(
+                fileURL: directory.appendingPathComponent("journal.db"),
+                keyProvider: keyProvider
+            )
+        } catch {
+            return EncryptedFileJournalStore(
+                fileURL: directory.appendingPathComponent("journal.inward"),
+                keyProvider: keyProvider
+            )
+        }
     }
 
     /// On-device ASR when the OS provides it; otherwise nil and the text path

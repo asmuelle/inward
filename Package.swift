@@ -19,6 +19,13 @@ let package = Package(
         .library(name: "ReflectKit", targets: ["ReflectKit"]),
         .library(name: "RecallKit", targets: ["RecallKit"]),
         .library(name: "PaywallKit", targets: ["PaywallKit"]),
+        .library(name: "JournalStoreSQLCipher", targets: ["JournalStoreSQLCipher"]),
+    ],
+    dependencies: [
+        // GRDB packaged with SQLCipher Community Edition as an XCFramework, the
+        // only clean way to get encrypted SQLite over SwiftPM (GRDB 7.4.1 +
+        // SQLCipher 4.7.0). Pinned exactly because it is the at-rest crypto layer.
+        .package(url: "https://github.com/thebrowsercompany/GRDB.swift", exact: "3.0.1"),
     ],
     targets: [
         // MARK: Modules
@@ -26,6 +33,10 @@ let package = Package(
         .target(name: "DesignSystem"),
         .target(name: "SafetyKit"),
         .target(name: "JournalStore"),
+        .target(
+            name: "JournalStoreSQLCipher",
+            dependencies: ["JournalStore", .product(name: "GRDB", package: "GRDB.swift")]
+        ),
         .target(name: "CaptureKit", dependencies: ["JournalStore", "DesignSystem"]),
         .target(name: "PrivacyKit", dependencies: ["JournalStore"]),
         .target(name: "ReflectKit", dependencies: ["SafetyKit"]),
@@ -41,6 +52,10 @@ let package = Package(
             resources: [.copy("Fixtures")]
         ),
         .testTarget(name: "JournalStoreTests", dependencies: ["JournalStore"]),
+        .testTarget(
+            name: "JournalStoreSQLCipherTests",
+            dependencies: ["JournalStoreSQLCipher", "JournalStore"]
+        ),
         .testTarget(name: "CaptureKitTests", dependencies: ["CaptureKit", "JournalStore"]),
         .testTarget(name: "PrivacyKitTests", dependencies: ["PrivacyKit", "CaptureKit", "JournalStore"]),
         .testTarget(name: "ReflectKitTests", dependencies: ["ReflectKit", "SafetyKit"]),

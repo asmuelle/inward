@@ -120,6 +120,12 @@ public enum Copy {
     public static let tagAddPlaceholder = "Add a tag"
     public static let tagsSuggestedLabel = "Suggested"
 
+    // MARK: Mind map
+
+    public static let mindMapLink = "Mind map"
+    public static let mindMapTitle = "Mind map"
+    public static let mindMapEmpty = "Names, places, and themes gather here as you write."
+
     // MARK: Membership / paywall
 
     public static let paywallTitle = "Keep Inward"
@@ -207,6 +213,9 @@ public enum Copy {
         tagsLabel,
         tagAddPlaceholder,
         tagsSuggestedLabel,
+        mindMapLink,
+        mindMapTitle,
+        mindMapEmpty,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

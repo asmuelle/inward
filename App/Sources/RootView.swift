@@ -245,6 +245,13 @@ struct RootView: View {
             .accessibilityLabel(Copy.settingsTitle)
         }
         ToolbarItem(placement: .inwardTrailing) {
+            Button { selection = .mindMap } label: {
+                Image(systemName: "circle.hexagongrid")
+            }
+            .accessibilityLabel(Copy.mindMapLink)
+            .disabled(model.entries.isEmpty)
+        }
+        ToolbarItem(placement: .inwardTrailing) {
             Button(Copy.weeklyReviewLink) { selection = .weeklyReview }
                 .font(.lamplight(.chrome))
                 .disabled(model.entries.isEmpty)
@@ -279,6 +286,8 @@ struct RootView: View {
             )
         case .weeklyReview:
             WeeklyReviewView(model: WeeklyReviewModel(store: store, provider: reviewProvider))
+        case .mindMap:
+            MindMapView(store: store)
         }
     }
 
@@ -398,6 +407,7 @@ struct RootView: View {
 private enum DetailRoute: Hashable {
     case entry(Entry)
     case weeklyReview
+    case mindMap
 }
 
 /// A just-deleted entry held for the undo window. Carries the transcription too,

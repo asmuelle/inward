@@ -118,6 +118,7 @@ public enum Copy {
     public static let entryDeleteUndo = "Undo"
     public static let tagsLabel = "Tags"
     public static let tagAddPlaceholder = "Add a tag"
+    public static let tagsSuggestedLabel = "Suggested"
 
     // MARK: Membership / paywall
 
@@ -205,6 +206,7 @@ public enum Copy {
         entryDeleteUndo,
         tagsLabel,
         tagAddPlaceholder,
+        tagsSuggestedLabel,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

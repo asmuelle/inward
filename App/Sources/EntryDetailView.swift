@@ -16,6 +16,7 @@ struct EntryDetailView: View {
     @State private var confirmingDelete = false
     @State private var tags: [Tag] = []
     @State private var newTag = ""
+    @State private var suggestions: [String] = []
 
     init(
         entry: Entry,
@@ -51,7 +52,7 @@ struct EntryDetailView: View {
         }
         .background(Color.inwardPaper.ignoresSafeArea())
         .inwardInlineTitle()
-        .task { await loadTags() }
+        .task { await load() }
         .toolbar {
             if store != nil, !isEditing {
                 ToolbarItem(placement: .inwardTrailing) {
@@ -152,13 +153,28 @@ struct EntryDetailView: View {
                 .foregroundStyle(Color.inwardInk)
                 .onSubmit { addTag() }
                 .submitLabel(.done)
+
+            if !suggestions.isEmpty {
+                Text(Copy.tagsSuggestedLabel)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+                    .padding(.top, Lamplight.Spacing.tight)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Lamplight.Spacing.tight) {
+                        ForEach(suggestions, id: \.self) { name in
+                            SuggestionChip(name: name) { accept(name) } onDismiss: { dismiss(name) }
+                        }
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func loadTags() async {
+    private func load() async {
         guard let store else { return }
         tags = await (try? store.tags(for: entry.id)) ?? []
+        suggestions = await (try? store.suggestedTags(for: entry.id)) ?? []
     }
 
     private func addTag() {
@@ -172,11 +188,25 @@ struct EntryDetailView: View {
         commitTags(tags.filter { $0.id != tag.id }.map(\.name))
     }
 
+    /// Accept a suggestion: it becomes a tag (and so leaves the suggestion list).
+    private func accept(_ name: String) {
+        commitTags(tags.map(\.name) + [name])
+    }
+
+    /// Decline a suggestion: remembered so it isn't offered again.
+    private func dismiss(_ name: String) {
+        guard let store else { return }
+        Task {
+            try? await store.dismissSuggestion(name, for: entry.id)
+            await load()
+        }
+    }
+
     private func commitTags(_ names: [String]) {
         guard let store else { return }
         Task {
             try? await store.setTags(names, for: entry.id)
-            await loadTags()
+            await load()
             onEdited(entry) // refresh the timeline's tag bar
         }
     }
@@ -203,5 +233,42 @@ private struct TagChip: View {
         .padding(.horizontal, Lamplight.Spacing.element)
         .padding(.vertical, 5)
         .background(Capsule().fill(Color.inwardSage.opacity(0.18)))
+    }
+}
+
+/// A suggested tag (from an extracted topic): tap the name to accept it, the × to
+/// dismiss it. Outlined rather than filled, to read as an offer, not a kept tag.
+private struct SuggestionChip: View {
+    let name: String
+    let onAccept: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: Lamplight.Spacing.hairline) {
+            Button(action: onAccept) {
+                HStack(spacing: 3) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text(name)
+                        .font(.lamplight(.caption))
+                }
+                .foregroundStyle(Color.inwardClay)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add \(name)")
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.inwardSage)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss \(name)")
+        }
+        .padding(.horizontal, Lamplight.Spacing.element)
+        .padding(.vertical, 5)
+        .background(
+            Capsule().stroke(Color.inwardClay.opacity(0.5), lineWidth: 1)
+        )
     }
 }

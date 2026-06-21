@@ -21,6 +21,7 @@ let package = Package(
         .library(name: "PaywallKit", targets: ["PaywallKit"]),
         .library(name: "JournalStoreSQLCipher", targets: ["JournalStoreSQLCipher"]),
         .library(name: "QuickCaptureKit", targets: ["QuickCaptureKit"]),
+        .library(name: "InsightKit", targets: ["InsightKit"]),
     ],
     dependencies: [
         // GRDB packaged with SQLCipher Community Edition as an XCFramework, the
@@ -46,6 +47,9 @@ let package = Package(
         // Shared by the app and the widget/control extension so the App Intent
         // type is identical across processes.
         .target(name: "QuickCaptureKit"),
+        // On-device entity/topic extraction. Depends on SafetyKit (TextNormalizer)
+        // for verification; never on JournalStore — the app maps Entry down.
+        .target(name: "InsightKit", dependencies: ["SafetyKit"]),
 
         // MARK: Tests
 
@@ -66,6 +70,7 @@ let package = Package(
         .testTarget(name: "RecallKitTests", dependencies: ["RecallKit"]),
         .testTarget(name: "PaywallKitTests", dependencies: ["PaywallKit"]),
         .testTarget(name: "QuickCaptureKitTests", dependencies: ["QuickCaptureKit"]),
+        .testTarget(name: "InsightKitTests", dependencies: ["InsightKit"]),
         .testTarget(name: "ComplianceTests", dependencies: ["SafetyKit", "DesignSystem"]),
     ]
 )

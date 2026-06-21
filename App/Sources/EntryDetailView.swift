@@ -14,6 +14,8 @@ struct EntryDetailView: View {
     @State private var isEditing = false
     @State private var draft = ""
     @State private var confirmingDelete = false
+    @State private var tags: [Tag] = []
+    @State private var newTag = ""
 
     init(
         entry: Entry,
@@ -41,11 +43,15 @@ struct EntryDetailView: View {
                             .pointSize * (Lamplight.TypeRole.entryProse.lineSpacingMultiplier - 1))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                if store != nil, !isEditing {
+                    tagsSection
+                }
             }
             .padding(Lamplight.Spacing.block)
         }
         .background(Color.inwardPaper.ignoresSafeArea())
         .inwardInlineTitle()
+        .task { await loadTags() }
         .toolbar {
             if store != nil, !isEditing {
                 ToolbarItem(placement: .inwardTrailing) {
@@ -121,5 +127,81 @@ struct EntryDetailView: View {
             }
             isEditing = false
         }
+    }
+
+    // MARK: - Tags
+
+    private var tagsSection: some View {
+        VStack(alignment: .leading, spacing: Lamplight.Spacing.element) {
+            Text(Copy.tagsLabel)
+                .font(.lamplight(.caption))
+                .foregroundStyle(Color.inwardSage)
+
+            if !tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Lamplight.Spacing.tight) {
+                        ForEach(tags) { tag in
+                            TagChip(name: tag.name) { remove(tag) }
+                        }
+                    }
+                }
+            }
+
+            TextField(Copy.tagAddPlaceholder, text: $newTag)
+                .font(.lamplight(.chrome))
+                .foregroundStyle(Color.inwardInk)
+                .onSubmit { addTag() }
+                .submitLabel(.done)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func loadTags() async {
+        guard let store else { return }
+        tags = await (try? store.tags(for: entry.id)) ?? []
+    }
+
+    private func addTag() {
+        let name = Tag.normalize(newTag)
+        newTag = ""
+        guard !name.isEmpty, !tags.contains(where: { $0.name == name }) else { return }
+        commitTags(tags.map(\.name) + [name])
+    }
+
+    private func remove(_ tag: Tag) {
+        commitTags(tags.filter { $0.id != tag.id }.map(\.name))
+    }
+
+    private func commitTags(_ names: [String]) {
+        guard let store else { return }
+        Task {
+            try? await store.setTags(names, for: entry.id)
+            await loadTags()
+            onEdited(entry) // refresh the timeline's tag bar
+        }
+    }
+}
+
+/// A removable tag pill.
+private struct TagChip: View {
+    let name: String
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: Lamplight.Spacing.hairline) {
+            Text(name)
+                .font(.lamplight(.caption))
+                .foregroundStyle(Color.inwardInk)
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.inwardSage)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(name)")
+        }
+        .padding(.horizontal, Lamplight.Spacing.element)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(Color.inwardSage.opacity(0.18)))
     }
 }

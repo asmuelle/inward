@@ -170,18 +170,18 @@ struct EncryptedFileJournalStoreTests {
         let url = temporaryStoreURL()
         let key = StaticKeyProvider(key: SymmetricKey(size: .bits256))
         let store = EncryptedFileJournalStore(fileURL: url, keyProvider: key)
-        let a = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
-        let b = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
-        try await store.save(entry: a, transcription: nil)
-        try await store.save(entry: b, transcription: nil)
-        try await store.setTags(["Work", " work "], for: a.id)
-        try await store.setTags(["home"], for: b.id)
+        let newer = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let older = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: newer, transcription: nil)
+        try await store.save(entry: older, transcription: nil)
+        try await store.setTags(["Work", " work "], for: newer.id)
+        try await store.setTags(["home"], for: older.id)
 
         // Survives a fresh instance reading the sealed file.
         let reopened = EncryptedFileJournalStore(fileURL: url, keyProvider: key)
-        #expect(try await reopened.tags(for: a.id).map(\.name) == ["work"])
+        #expect(try await reopened.tags(for: newer.id).map(\.name) == ["work"])
         #expect(try await reopened.allTags().map(\.name) == ["home", "work"])
-        #expect(try await reopened.entries(withTag: "WORK").map(\.id) == [a.id])
+        #expect(try await reopened.entries(withTag: "WORK").map(\.id) == [newer.id])
     }
 
     @Test("deleting an entry prunes its tags, and tagging a missing entry throws")

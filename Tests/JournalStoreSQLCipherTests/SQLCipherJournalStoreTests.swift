@@ -143,15 +143,15 @@ struct SQLCipherJournalStoreTests {
     @Test("allTags lists the vocabulary and entries(withTag:) filters case-insensitively")
     func allTagsAndFilter() async throws {
         let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
-        let a = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
-        let b = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
-        try await store.save(entry: a, transcription: nil)
-        try await store.save(entry: b, transcription: nil)
-        try await store.setTags(["work"], for: a.id)
-        try await store.setTags(["home"], for: b.id)
+        let newer = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let older = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: newer, transcription: nil)
+        try await store.save(entry: older, transcription: nil)
+        try await store.setTags(["work"], for: newer.id)
+        try await store.setTags(["home"], for: older.id)
 
         #expect(try await store.allTags().map(\.name) == ["home", "work"])
-        #expect(try await store.entries(withTag: "WORK").map(\.id) == [a.id])
+        #expect(try await store.entries(withTag: "WORK").map(\.id) == [newer.id])
     }
 
     @Test("retagging prunes tags that no entry references anymore")

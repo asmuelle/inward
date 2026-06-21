@@ -286,39 +286,70 @@ struct RootView: View {
         )
     }
 
-    @ViewBuilder private var timeline: some View {
-        if model.entries.isEmpty {
-            VStack(spacing: Lamplight.Spacing.block) {
-                Spacer()
-                Text(Copy.timelineEmpty)
-                    .font(.lamplight(.entryProse))
-                    .foregroundStyle(Color.inwardSage)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Lamplight.Spacing.stage)
-                Spacer()
-                Spacer()
+    private var timeline: some View {
+        VStack(spacing: 0) {
+            if !model.tags.isEmpty {
+                tagFilterBar
             }
-        } else {
-            ScrollView {
-                LazyVStack(spacing: Lamplight.Spacing.block) {
-                    ForEach(model.entries) { entry in
-                        Button {
-                            selection = .entry(entry)
-                        } label: {
-                            TimelineRow(entry: entry, isSelected: isSelectedEntry(entry))
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(Copy.entryDelete, systemImage: "trash", role: .destructive) {
-                                deleteEntry(entry)
+            if model.entries.isEmpty {
+                VStack(spacing: Lamplight.Spacing.block) {
+                    Spacer()
+                    Text(Copy.timelineEmpty)
+                        .font(.lamplight(.entryProse))
+                        .foregroundStyle(Color.inwardSage)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Lamplight.Spacing.stage)
+                    Spacer()
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: Lamplight.Spacing.block) {
+                        ForEach(model.entries) { entry in
+                            Button {
+                                selection = .entry(entry)
+                            } label: {
+                                TimelineRow(entry: entry, isSelected: isSelectedEntry(entry))
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(Copy.entryDelete, systemImage: "trash", role: .destructive) {
+                                    deleteEntry(entry)
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, Lamplight.Spacing.block)
+                    .padding(.top, Lamplight.Spacing.element)
+                    .padding(.bottom, 160)
                 }
-                .padding(.horizontal, Lamplight.Spacing.block)
-                .padding(.top, Lamplight.Spacing.element)
-                .padding(.bottom, 160)
             }
+        }
+    }
+
+    /// Horizontal chips of the journal's tags; tap to filter the timeline, tap the
+    /// active one again to clear.
+    private var tagFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Lamplight.Spacing.tight) {
+                ForEach(model.tags) { tag in
+                    let isActive = model.activeTag?.id == tag.id
+                    Button {
+                        Task { await model.setFilter(isActive ? nil : tag) }
+                    } label: {
+                        Text(tag.name)
+                            .font(.lamplight(.caption))
+                            .foregroundStyle(isActive ? Color.inwardPaper : Color.inwardInk)
+                            .padding(.horizontal, Lamplight.Spacing.element)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(isActive ? Color.inwardClay : Color.inwardSage.opacity(0.18)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, Lamplight.Spacing.block)
+            .padding(.vertical, Lamplight.Spacing.tight)
         }
     }
 
@@ -391,6 +422,8 @@ private struct UndoDeleteBar: View {
 @Observable
 final class TimelineModel {
     private(set) var entries: [Entry] = []
+    private(set) var tags: [Tag] = []
+    private(set) var activeTag: Tag?
     private let store: any JournalStoring
 
     init(store: any JournalStoring) {
@@ -399,11 +432,27 @@ final class TimelineModel {
 
     func refresh() async {
         do {
-            entries = try await store.allEntries()
+            tags = try await store.allTags()
+            // A filter whose tag was pruned away (last entry removed/retagged)
+            // silently falls back to the full timeline.
+            if let active = activeTag, !tags.contains(where: { $0.id == active.id }) {
+                activeTag = nil
+            }
+            if let active = activeTag {
+                entries = try await store.entries(withTag: active.name)
+            } else {
+                entries = try await store.allEntries()
+            }
         } catch {
             // Reading must never crash the shell; an empty timeline with the
             // quiet empty-state line is the degraded surface.
             entries = []
+            tags = []
         }
+    }
+
+    func setFilter(_ tag: Tag?) async {
+        activeTag = tag
+        await refresh()
     }
 }

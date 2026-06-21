@@ -116,6 +116,8 @@ public enum Copy {
     public static let entryDeleteConfirmAction = "Delete"
     public static let entryDeleted = "Entry deleted"
     public static let entryDeleteUndo = "Undo"
+    public static let tagsLabel = "Tags"
+    public static let tagAddPlaceholder = "Add a tag"
 
     // MARK: Membership / paywall
 
@@ -201,6 +203,8 @@ public enum Copy {
         entryDeleteConfirmAction,
         entryDeleted,
         entryDeleteUndo,
+        tagsLabel,
+        tagAddPlaceholder,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

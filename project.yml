@@ -52,6 +52,12 @@ targets:
         # signing is unaffected (it has no entitlements file).
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": App/Inward-macOS.entitlements
         "INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]": public.app-category.healthcare-fitness
+        # GRDB/SQLCipher ships as a dynamic framework embedded in the app. The
+        # multiplatform target carries the iOS runpath (@executable_path/Frameworks);
+        # on macOS the binary sits in Contents/MacOS, so the framework in
+        # Contents/Frameworks is only found via @executable_path/../Frameworks.
+        # Without this the app crashes at launch ("can't be opened") loading GRDB.
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": [$(inherited), "@executable_path/../Frameworks"]
 
   InwardTests:
     type: bundle.unit-test

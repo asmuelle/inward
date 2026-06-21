@@ -221,6 +221,39 @@ public final class SQLCipherJournalStore: JournalStoring {
         )
     }
 
+    // MARK: - Tag suggestions
+
+    public func suggestedTags(for entryID: UUID) async throws -> [String] {
+        try await read { db in
+            try String.fetchAll(db, sql: """
+                SELECT entity.name FROM entity
+                JOIN entry_entity ON entry_entity.entityId = entity.id
+                WHERE entry_entity.entryId = ? AND entity.kind = ?
+                  AND entity.normalized NOT IN (
+                    SELECT tag.name FROM tag
+                    JOIN entry_tag ON entry_tag.tagId = tag.id
+                    WHERE entry_tag.entryId = ?
+                  )
+                  AND entity.normalized NOT IN (
+                    SELECT name FROM dismissed_suggestion WHERE entryId = ?
+                  )
+                ORDER BY entity.name
+            """, arguments: [entryID.uuidString, EntityKind.topic.rawValue, entryID.uuidString, entryID.uuidString])
+        }
+    }
+
+    public func dismissSuggestion(_ name: String, for entryID: UUID) async throws {
+        let normalized = Tag.normalize(name)
+        guard !normalized.isEmpty else { return }
+        try await write { db in
+            guard try EntryRecord.fetchOne(db, key: entryID.uuidString) != nil else {
+                throw JournalStoreError.entryNotFound(entryID)
+            }
+            try DismissedSuggestionRecord(entryId: entryID.uuidString, name: normalized)
+                .insert(db, onConflict: .ignore)
+        }
+    }
+
     // MARK: - Helpers
 
     /// Wrap GRDB errors as `JournalStoreError`, but let our own typed errors

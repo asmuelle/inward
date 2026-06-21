@@ -156,6 +156,18 @@ public actor EncryptedFileJournalStore: JournalStoring {
         []
     }
 
+    /// The fallback store keeps no entities, so there are no topic suggestions;
+    /// dismissal is a no-op (but still validates the entry exists).
+    public func suggestedTags(for _: UUID) async throws -> [String] {
+        []
+    }
+
+    public func dismissSuggestion(_: String, for entryID: UUID) async throws {
+        guard try loadDatabase().entries.contains(where: { $0.id == entryID }) else {
+            throw JournalStoreError.entryNotFound(entryID)
+        }
+    }
+
     // MARK: - Sealed file handling
 
     private func loadDatabase() throws -> JournalDatabase {

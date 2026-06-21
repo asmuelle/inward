@@ -134,6 +134,14 @@ struct EntryEntityRecord: Codable, FetchableRecord, PersistableRecord {
     var entityId: String
 }
 
+struct DismissedSuggestionRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "dismissed_suggestion"
+
+    var entryId: String
+    /// Normalized suggestion name.
+    var name: String
+}
+
 enum JournalSchema {
     static let migrator: DatabaseMigrator = {
         var migrator = DatabaseMigrator()
@@ -208,6 +216,15 @@ enum JournalSchema {
                 t.column("entityId", .text).notNull().indexed()
                     .references(EntityRecord.databaseTableName, onDelete: .cascade)
                 t.primaryKey(["entryId", "entityId"])
+            }
+        }
+        // Suggestions the user declined, so they aren't re-offered (cascades with the entry).
+        migrator.registerMigration("v6-dismissed-suggestions") { db in
+            try db.create(table: DismissedSuggestionRecord.databaseTableName) { t in
+                t.column("entryId", .text).notNull().indexed()
+                    .references(EntryRecord.databaseTableName, onDelete: .cascade)
+                t.column("name", .text).notNull()
+                t.primaryKey(["entryId", "name"])
             }
         }
         return migrator

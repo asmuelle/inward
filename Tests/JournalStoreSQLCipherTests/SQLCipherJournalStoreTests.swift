@@ -238,6 +238,35 @@ struct SQLCipherJournalStoreTests {
         #expect(try await store.entities(for: older.id).isEmpty)
     }
 
+    @Test("extracted topics are suggested until tagged or dismissed")
+    func tagSuggestions() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setEntities([
+            JournalEntity(kind: .topic, name: "mornings"),
+            JournalEntity(kind: .topic, name: "work"),
+            JournalEntity(kind: .person, name: "Sarah"), // not a topic → never suggested
+        ], for: entry.id)
+
+        #expect(try await store.suggestedTags(for: entry.id) == ["mornings", "work"])
+
+        try await store.setTags(["work"], for: entry.id) // accepting a topic as a tag
+        #expect(try await store.suggestedTags(for: entry.id) == ["mornings"])
+
+        try await store.dismissSuggestion("Mornings", for: entry.id) // case-insensitive
+        #expect(try await store.suggestedTags(for: entry.id).isEmpty)
+    }
+
+    @Test("dismissing a suggestion for a missing entry throws")
+    func dismissMissingThrows() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let ghost = UUID()
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.dismissSuggestion("x", for: ghost)
+        }
+    }
+
     @Test("journal persists across store instances on the same file and key")
     func persistsAcrossInstances() async throws {
         let url = temporaryDatabaseURL()

@@ -61,4 +61,14 @@ public protocol JournalStoring: Sendable {
     /// IDs of entries that have not had insights extracted yet, newest first —
     /// the work queue for the background indexer (new entries and backfill alike).
     func entryIDsNeedingInsights(limit: Int) async throws -> [UUID]
+
+    // MARK: - Tag suggestions
+
+    /// Extracted topics for the entry that aren't already tags on it and haven't
+    /// been dismissed — the confirmable suggestions the editor offers.
+    func suggestedTags(for entryID: UUID) async throws -> [String]
+
+    /// Records that the user declined a suggested tag for this entry, so it isn't
+    /// offered again. Throws `entryNotFound` if the entry is absent.
+    func dismissSuggestion(_ name: String, for entryID: UUID) async throws
 }

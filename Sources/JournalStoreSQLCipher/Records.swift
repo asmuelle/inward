@@ -106,6 +106,34 @@ struct EntryTagRecord: Codable, FetchableRecord, PersistableRecord {
     var tagId: String
 }
 
+struct EntityRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "entity"
+
+    var id: String
+    var kind: String
+    var name: String
+    var normalized: String
+
+    init(_ entity: JournalEntity) {
+        id = entity.id.uuidString
+        kind = entity.kind.rawValue
+        name = entity.name
+        normalized = entity.normalizedName
+    }
+
+    func toEntity() -> JournalEntity? {
+        guard let uuid = UUID(uuidString: id), let kind = EntityKind(rawValue: kind) else { return nil }
+        return JournalEntity(id: uuid, kind: kind, name: name)
+    }
+}
+
+struct EntryEntityRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "entry_entity"
+
+    var entryId: String
+    var entityId: String
+}
+
 enum JournalSchema {
     static let migrator: DatabaseMigrator = {
         var migrator = DatabaseMigrator()
@@ -159,6 +187,27 @@ enum JournalSchema {
                 t.column("tagId", .text).notNull().indexed()
                     .references(TagRecord.databaseTableName, onDelete: .cascade)
                 t.primaryKey(["entryId", "tagId"])
+            }
+        }
+        // Derived entities (people/places/objects/topics) plus a per-entry marker
+        // so the indexer knows what still needs extracting. Both join sides cascade.
+        migrator.registerMigration("v5-entities") { db in
+            try db.alter(table: EntryRecord.databaseTableName) { t in
+                t.add(column: "insightsExtractedAt", .datetime)
+            }
+            try db.create(table: EntityRecord.databaseTableName) { t in
+                t.primaryKey("id", .text)
+                t.column("kind", .text).notNull()
+                t.column("name", .text).notNull()
+                t.column("normalized", .text).notNull()
+                t.uniqueKey(["kind", "normalized"])
+            }
+            try db.create(table: EntryEntityRecord.databaseTableName) { t in
+                t.column("entryId", .text).notNull().indexed()
+                    .references(EntryRecord.databaseTableName, onDelete: .cascade)
+                t.column("entityId", .text).notNull().indexed()
+                    .references(EntityRecord.databaseTableName, onDelete: .cascade)
+                t.primaryKey(["entryId", "entityId"])
             }
         }
         return migrator

@@ -133,6 +133,29 @@ public actor EncryptedFileJournalStore: JournalStoring {
         return (database.tags ?? []).filter { referenced.contains($0.id) }
     }
 
+    // MARK: - Derived entities (insights)
+
+    //
+    // Entities are derived data, re-extractable at any time, so this fallback
+    // store deliberately doesn't persist them (the SQLCipher store does). The
+    // methods stay well-behaved: nothing is stored, and every entry reports as
+    // "needing insights" so a later SQLCipher-backed run can fill them in.
+
+    public func setEntities(_: [JournalEntity], for entryID: UUID) async throws {
+        guard try loadDatabase().entries.contains(where: { $0.id == entryID }) else {
+            throw JournalStoreError.entryNotFound(entryID)
+        }
+        // No-op: derived data isn't kept in the file fallback.
+    }
+
+    public func entities(for _: UUID) async throws -> [JournalEntity] {
+        []
+    }
+
+    public func entryIDsNeedingInsights(limit _: Int) async throws -> [UUID] {
+        []
+    }
+
     // MARK: - Sealed file handling
 
     private func loadDatabase() throws -> JournalDatabase {

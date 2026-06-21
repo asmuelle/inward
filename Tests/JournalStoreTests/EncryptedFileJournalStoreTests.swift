@@ -200,6 +200,23 @@ struct EncryptedFileJournalStoreTests {
         }
     }
 
+    @Test("entities are derived: the file fallback stores none and reports none needed")
+    func entitiesAreDerivedAndNotStored() async throws {
+        let store = EncryptedFileJournalStore(fileURL: temporaryStoreURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+
+        try await store.setEntities([JournalEntity(kind: .person, name: "Sarah")], for: entry.id) // accepted, not kept
+
+        #expect(try await store.entities(for: entry.id).isEmpty)
+        #expect(try await store.entryIDsNeedingInsights(limit: 10).isEmpty)
+
+        let ghost = UUID()
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.setEntities([], for: ghost)
+        }
+    }
+
     @Test("empty store reads as empty, not as an error")
     func emptyStoreReadsEmpty() async throws {
         // Arrange

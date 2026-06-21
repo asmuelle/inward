@@ -85,10 +85,11 @@ public final class SQLCipherJournalStore: JournalStoring {
 
     public func delete(entryID: UUID) async throws {
         try await write { db in
-            // The transcription and entry_tag rows cascade automatically (FK onDelete: .cascade).
+            // The transcription, entry_tag and entry_entity rows cascade automatically.
             let deleted = try EntryRecord.deleteOne(db, key: entryID.uuidString)
             guard deleted else { throw JournalStoreError.entryNotFound(entryID) }
             try Self.pruneOrphanTags(db)
+            try Self.pruneOrphanEntities(db)
         }
     }
 
@@ -153,6 +154,71 @@ public final class SQLCipherJournalStore: JournalStoring {
             .execute(
                 sql: "DELETE FROM \(TagRecord.databaseTableName) WHERE id NOT IN (SELECT tagId FROM \(EntryTagRecord.databaseTableName))"
             )
+    }
+
+    // MARK: - Derived entities (insights)
+
+    public func setEntities(_ entities: [JournalEntity], for entryID: UUID) async throws {
+        // Dedup by (kind, normalized) so a repeated mention links only once.
+        var seen = Set<String>()
+        let unique = entities.filter { entity in
+            guard !entity.normalizedName.isEmpty else { return false }
+            return seen.insert(entity.kind.rawValue + "\u{1}" + entity.normalizedName).inserted
+        }
+        try await write { db in
+            guard try EntryRecord.fetchOne(db, key: entryID.uuidString) != nil else {
+                throw JournalStoreError.entryNotFound(entryID)
+            }
+            try EntryEntityRecord.filter(Column("entryId") == entryID.uuidString).deleteAll(db)
+            for entity in unique {
+                let entityId: String
+                if let existing = try EntityRecord
+                    .filter(Column("kind") == entity.kind.rawValue && Column("normalized") == entity.normalizedName)
+                    .fetchOne(db)
+                {
+                    entityId = existing.id
+                } else {
+                    let record = EntityRecord(entity)
+                    try record.insert(db)
+                    entityId = record.id
+                }
+                try EntryEntityRecord(entryId: entryID.uuidString, entityId: entityId).insert(db)
+            }
+            try Self.pruneOrphanEntities(db)
+            // Mark processed even when empty, so the entry isn't re-queued.
+            try db.execute(
+                sql: "UPDATE \(EntryRecord.databaseTableName) SET insightsExtractedAt = ? WHERE id = ?",
+                arguments: [Date(), entryID.uuidString]
+            )
+        }
+    }
+
+    public func entities(for entryID: UUID) async throws -> [JournalEntity] {
+        try await read { db in
+            try EntityRecord.fetchAll(db, sql: """
+                SELECT entity.* FROM entity
+                JOIN entry_entity ON entry_entity.entityId = entity.id
+                WHERE entry_entity.entryId = ?
+                ORDER BY entity.kind, entity.name
+            """, arguments: [entryID.uuidString]).compactMap { $0.toEntity() }
+        }
+    }
+
+    public func entryIDsNeedingInsights(limit: Int) async throws -> [UUID] {
+        try await read { db in
+            try String.fetchAll(db, sql: """
+                SELECT id FROM \(EntryRecord.databaseTableName)
+                WHERE insightsExtractedAt IS NULL
+                ORDER BY createdAt DESC
+                LIMIT ?
+            """, arguments: [limit]).compactMap(UUID.init(uuidString:))
+        }
+    }
+
+    private static func pruneOrphanEntities(_ db: Database) throws {
+        try db.execute(
+            sql: "DELETE FROM \(EntityRecord.databaseTableName) WHERE id NOT IN (SELECT entityId FROM \(EntryEntityRecord.databaseTableName))"
+        )
     }
 
     // MARK: - Helpers

@@ -47,4 +47,18 @@ public protocol JournalStoring: Sendable {
 
     /// Entries carrying the given tag (matched on its normalized name), newest first.
     func entries(withTag tagName: String) async throws -> [Entry]
+
+    // MARK: - Derived entities (insights)
+
+    /// Replaces the entry's extracted entities and marks the entry as having had
+    /// insights extracted (even when the list is empty), so it isn't re-processed.
+    /// Reuses/creates entity rows and prunes any no entry references anymore.
+    func setEntities(_ entities: [JournalEntity], for entryID: UUID) async throws
+
+    /// The entities extracted for one entry.
+    func entities(for entryID: UUID) async throws -> [JournalEntity]
+
+    /// IDs of entries that have not had insights extracted yet, newest first —
+    /// the work queue for the background indexer (new entries and backfill alike).
+    func entryIDsNeedingInsights(limit: Int) async throws -> [UUID]
 }

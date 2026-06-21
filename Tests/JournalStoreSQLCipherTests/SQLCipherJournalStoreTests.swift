@@ -188,6 +188,56 @@ struct SQLCipherJournalStoreTests {
         }
     }
 
+    @Test("entities round-trip, dedupe by kind+name, and mark the entry processed")
+    func entitiesRoundTrip() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        #expect(try await store.entryIDsNeedingInsights(limit: 10) == [entry.id])
+
+        try await store.setEntities([
+            JournalEntity(kind: .person, name: "Sarah"),
+            JournalEntity(kind: .person, name: "sarah"),
+            JournalEntity(kind: .place, name: "Berlin"),
+            JournalEntity(kind: .topic, name: "mornings"),
+        ], for: entry.id)
+
+        let entities = try await store.entities(for: entry.id)
+        #expect(entities.count(where: { $0.kind == .person }) == 1)
+        #expect(Set(entities.map(\.name)) == ["Sarah", "Berlin", "mornings"])
+        #expect(try await store.entryIDsNeedingInsights(limit: 10).isEmpty, "processed entries leave the queue")
+    }
+
+    @Test("an empty extraction still marks the entry processed")
+    func emptyExtractionMarksProcessed() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+
+        try await store.setEntities([], for: entry.id)
+
+        #expect(try await store.entities(for: entry.id).isEmpty)
+        #expect(try await store.entryIDsNeedingInsights(limit: 10).isEmpty)
+    }
+
+    @Test("re-extracting prunes orphan entities; shared ones survive until the last reference")
+    func entityPruningAndSharing() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let newer = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let older = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: newer, transcription: nil)
+        try await store.save(entry: older, transcription: nil)
+
+        try await store.setEntities([JournalEntity(kind: .place, name: "Berlin")], for: newer.id)
+        try await store.setEntities([JournalEntity(kind: .place, name: "berlin")], for: older.id) // reuses the row
+
+        try await store.delete(entryID: newer.id) // older still references "Berlin"
+        #expect(try await store.entities(for: older.id).map(\.name) == ["Berlin"])
+
+        try await store.setEntities([], for: older.id) // last reference gone → pruned
+        #expect(try await store.entities(for: older.id).isEmpty)
+    }
+
     @Test("journal persists across store instances on the same file and key")
     func persistsAcrossInstances() async throws {
         let url = temporaryDatabaseURL()

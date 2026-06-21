@@ -25,6 +25,7 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - App/Sources
+      - App/Resources
     dependencies:
       - package: InwardCore
         products:

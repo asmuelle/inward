@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Inward — app icon master. A voice rippling outward, drawn inward to one kept thought. -->
+  <rect width="1024" height="1024" fill="#F7F2E9"/>
+  <g transform="rotate(118 512 512)" fill="none" stroke="#B5654A" stroke-linecap="round">
+    <circle cx="512" cy="512" r="372" stroke-width="13" stroke-dasharray="2010 327" opacity="0.36"/>
+    <circle cx="512" cy="512" r="280" stroke-width="18" stroke-dasharray="1520 240" opacity="0.62"/>
+    <circle cx="512" cy="512" r="190" stroke-width="24" stroke-dasharray="1045 149" opacity="0.92"/>
+  </g>
+  <circle cx="512" cy="512" r="62" fill="#2B2620"/>
+</svg>

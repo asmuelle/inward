@@ -1,0 +1,14 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Concept 3: Spoken → kept — a voice waveform settling into a single written line. Dark 'lamplight' theme. -->
+  <rect width="1024" height="1024" fill="#211D18"/>
+  <g fill="#E9DFC9">
+    <rect x="232" y="457" width="32" height="110" rx="16"/>
+    <rect x="298" y="402" width="32" height="220" rx="16"/>
+    <rect x="364" y="437" width="32" height="150" rx="16"/>
+    <rect x="430" y="362" width="32" height="300" rx="16"/>
+    <rect x="496" y="427" width="32" height="170" rx="16"/>
+    <rect x="562" y="472" width="32" height="80" rx="16"/>
+  </g>
+  <!-- the kept line the voice resolves into -->
+  <rect x="628" y="497" width="170" height="30" rx="15" fill="#B5654A"/>
+</svg>

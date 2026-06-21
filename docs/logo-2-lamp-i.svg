@@ -1,0 +1,22 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Concept 2: Lamplight 'i' — a serif initial whose tittle is a lit lamp. Words + warmth. -->
+  <defs>
+    <radialGradient id="lamp" cx="50%" cy="42%" r="58%">
+      <stop offset="0%" stop-color="#F6DCAC"/>
+      <stop offset="48%" stop-color="#D98E5A"/>
+      <stop offset="100%" stop-color="#B5654A"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#F7F2E9"/>
+  <!-- soft lamplight glow -->
+  <circle cx="512" cy="312" r="196" fill="#B5654A" opacity="0.08"/>
+  <circle cx="512" cy="312" r="130" fill="#B5654A" opacity="0.10"/>
+  <!-- serif lowercase i: foot serif, stem, top serif -->
+  <g fill="#2B2620">
+    <rect x="478" y="452" width="68" height="278" rx="7"/>
+    <rect x="430" y="704" width="164" height="32" rx="12"/>
+    <rect x="454" y="452" width="116" height="24" rx="11"/>
+  </g>
+  <!-- the lit tittle -->
+  <circle cx="512" cy="312" r="74" fill="url(#lamp)"/>
+</svg>

@@ -52,9 +52,9 @@ func delete(entryID: UUID) async throws
 **UI.**
 - Long-press **context menu** on `TimelineRow` → Delete.
 - Delete action in `EntryDetailView`.
-- Destructive **confirmation dialog**.
-- Optional ~5s **Undo** snackbar: snapshot the `Entry` + `Transcription`, re-`save`
-  on undo (the store inserts, so undo is a re-insert).
+- Destructive **confirmation dialog**, then a ~5s **"Deleted · Undo" snackbar**:
+  snapshot the `Entry` + `Transcription`, re-`save` on undo (the store inserts, so
+  undo is a re-insert). All on-device; gone for good once it dismisses.
 
 **Tests.** delete removes the entry and cascades its transcription; deleting a
 missing id throws `entryNotFound`; file-store parity.
@@ -147,7 +147,8 @@ can never reach a surface — the same trust contract as verified citations.
 
 **When.** Extract at **save time** (precompute like `EntrySummary`), persist to
 encrypted tables, re-extract on edit, and backfill existing entries in the
-background. Reuse the existing `TokenBudgeter` to stay under the context window.
+**background at low priority, throttled** (a few at a time) so the app stays
+responsive. Reuse the existing `TokenBudgeter` to stay under the context window.
 
 **Schema (migration `v5`)**:
 
@@ -177,8 +178,9 @@ Built by **aggregating the stored entity tables** — no re-running the model:
   own words, like citations.
 
 **UI.** A new top-level **Mind Map** surface (alongside Weekly Review): SwiftUI
-`Canvas` with a lightweight radial/force layout, capped to top-N nodes by mention,
-filterable by entity kind, with a **Reduce-Motion** static-layout fallback.
+`Canvas` with a calm **radial-cluster** layout grouped by entity kind (people /
+places / topics), capped to top-N nodes by mention, filterable by kind, with a
+**Reduce-Motion** static-layout fallback.
 
 ---
 
@@ -224,11 +226,14 @@ fallback (graceful degradation).
 
 Each phase is independently shippable and testable.
 
-## Open decisions
+## Decisions (resolved)
 
-- **Undo on delete** — ship the 5s snackbar, or rely on the confirmation dialog only?
-- **Tag model** — free-form only, or also a small curated starter set?
-- **Mind-map layout** — force-directed (livelier, heavier) vs radial clusters
-  (calmer, cheaper, more on-brand)?
-- **Backfill** — extract insights for existing entries eagerly on first launch
-  after update, or lazily as entries are opened?
+- **Delete UX** — destructive confirmation **plus a ~5s "Deleted · Undo" snackbar**
+  (undo re-inserts, on-device). Forgiving against accidental taps.
+- **Tag model** — **free-form tags + AI-suggested** (from extracted topics, as
+  confirmable chips). No curated/prescribed labels — stays on-brand.
+- **Mind-map layout** — **radial clusters** grouped by entity kind (calm, cheaper,
+  Reduce-Motion-friendly), not a force-directed graph.
+- **Backfill** — **background, throttled, low-priority** after launch (a few
+  entries at a time); the app stays responsive and the map fills in over a
+  session or two. New entries extract at save.

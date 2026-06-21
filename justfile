@@ -127,24 +127,26 @@ run-on-sim name="": ios-sim-build
 # Needs your Apple Team ID once: `APPLE_DEVELOPMENT_TEAM=<id> just run-on-device`.
 # Pass a name fragment to pick a device: `... just run-on-device "Excalibur"`. The
 # phone must be connected, unlocked, trusted, and have Developer Mode on.
+# First time only: register the device in your developer account — open the project
+# in Xcode, select it, and ⌘R once (CLI provisioning can't register a new device).
 # Build a signed device app, then install and launch it on a connected iPhone/iPad.
 run-on-device name="": _require-project
     @team="${DEVELOPMENT_TEAM:-${APPLE_DEVELOPMENT_TEAM:-}}"; \
     test -n "$team" || { echo "Set APPLE_DEVELOPMENT_TEAM=<Apple Team ID> to sign for a device."; exit 1; }; \
-    name="{{name}}"; \
-    id="$(xcrun devicectl list devices 2>/dev/null | grep -iE 'iphone|ipad' | grep -vi 'unavailable' | grep -F "$name" | grep -oE '[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}' | head -n1)"; \
-    test -n "$id" || { echo "No connected iPhone/iPad found. Connect & unlock it, trust this Mac, enable Developer Mode, then retry:"; xcrun devicectl list devices; exit 1; }; \
-    echo "→ device $id"; \
+    ids="$(python3 scripts/ios_device.py '{{name}}')"; \
+    test -n "$ids" || { echo "No connected iPhone/iPad found. Connect & unlock it, trust this Mac, enable Developer Mode, then retry:"; xcrun devicectl list devices; exit 1; }; \
+    set -- $ids; coreid="$1"; udid="$2"; \
+    echo "→ device $coreid (udid $udid)"; \
     xcodebuild build -project "{{app}}.xcodeproj" -scheme "{{app}}" \
-        -destination "generic/platform=iOS" \
+        -destination "platform=iOS,id=$udid" \
         -derivedDataPath {{device_dd}} \
         -allowProvisioningUpdates \
         CODE_SIGN_STYLE=Automatic \
         DEVELOPMENT_TEAM="$team"; \
     test -d "{{device_app}}" || { echo "Built app not found: {{device_app}}"; exit 1; }; \
-    xcrun devicectl device install app --device "$id" "{{device_app}}"; \
-    xcrun devicectl device process launch --device "$id" "{{bundle}}"; \
-    echo "Launched {{app}} on device $id"
+    xcrun devicectl device install app --device "$coreid" "{{device_app}}"; \
+    xcrun devicectl device process launch --device "$coreid" "{{bundle}}"; \
+    echo "Launched {{app}} on device $coreid"
 
 # arm64; pass a Team via xcodebuild env if you need a signed device build.
 # Build the app for a connected device or archive workflow.

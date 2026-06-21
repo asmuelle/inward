@@ -65,6 +65,13 @@
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             self.analyzer = analyzer
 
+            // SpeechAnalyzer requires audio in its own format; handing it raw mic
+            // buffers traps inside the framework (preRunRecognition). Resolve the
+            // format it wants and convert every buffer to it before delivery.
+            guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+                throw TranscriptionError.audioSetupFailed("no compatible on-device audio format")
+            }
+
             let (inputStream, inputContinuation) = AsyncStream<AnalyzerInput>.makeStream()
             self.inputContinuation = inputContinuation
 
@@ -72,7 +79,7 @@
             self.outputContinuation = outputContinuation
 
             try configureAudioSession()
-            try await installTap(continuation: inputContinuation, transcriber: transcriber)
+            try await installTap(continuation: inputContinuation, analyzerFormat: analyzerFormat)
             try await analyzer.start(inputSequence: inputStream)
 
             resultTask = Task { [weak self] in
@@ -132,7 +139,7 @@
 
         private func installTap(
             continuation: AsyncStream<AnalyzerInput>.Continuation,
-            transcriber: SpeechTranscriber
+            analyzerFormat: AVAudioFormat
         ) async throws {
             let inputNode = audioEngine.inputNode
             // Engage the input node before reading its format. Right after a
@@ -153,8 +160,10 @@
             guard Self.isValid(tapFormat) else {
                 throw TranscriptionError.audioSetupFailed("microphone input is not ready")
             }
+            let converter = BufferConverter(to: analyzerFormat)
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: tapFormat) { buffer, _ in
-                continuation.yield(AnalyzerInput(buffer: buffer))
+                guard let converted = try? converter.convert(buffer) else { return }
+                continuation.yield(AnalyzerInput(buffer: converted))
             }
             do {
                 try audioEngine.start()
@@ -166,6 +175,63 @@
 
         private static func isValid(_ format: AVAudioFormat) -> Bool {
             format.channelCount > 0 && format.sampleRate > 0
+        }
+    }
+
+    /// Resamples microphone buffers into the analyzer's required format.
+    /// SpeechAnalyzer traps on mismatched input, so every buffer is converted to
+    /// `targetFormat` before delivery. The tap calls this serially on the audio
+    /// thread, so the cached converter needs no extra locking — hence the
+    /// justified `@unchecked Sendable`.
+    @available(iOS 26.0, macOS 26.0, *)
+    private final class BufferConverter: @unchecked Sendable {
+        private let targetFormat: AVAudioFormat
+        private var converter: AVAudioConverter?
+        /// The buffer the converter's pull block should hand back next. The block
+        /// runs synchronously inside `convert(to:error:withInputFrom:)`, so keeping
+        /// this as instance state (rather than a captured local) is safe and keeps
+        /// the block's only capture `self`.
+        private var pendingBuffer: AVAudioPCMBuffer?
+
+        init(to targetFormat: AVAudioFormat) {
+            self.targetFormat = targetFormat
+        }
+
+        func convert(_ buffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+            let inputFormat = buffer.format
+            guard inputFormat != targetFormat else { return buffer }
+
+            if converter == nil || converter?.inputFormat != inputFormat {
+                converter = AVAudioConverter(from: inputFormat, to: targetFormat)
+                converter?.primeMethod = .none
+            }
+            guard let converter else {
+                throw TranscriptionError.audioSetupFailed("could not create audio converter")
+            }
+
+            let ratio = converter.outputFormat.sampleRate / converter.inputFormat.sampleRate
+            let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up))
+            guard capacity > 0,
+                  let output = AVAudioPCMBuffer(pcmFormat: converter.outputFormat, frameCapacity: capacity)
+            else {
+                throw TranscriptionError.audioSetupFailed("could not allocate conversion buffer")
+            }
+
+            pendingBuffer = buffer
+            var nsError: NSError?
+            let status = converter.convert(to: output, error: &nsError) { [self] _, inputStatus in
+                if let next = pendingBuffer {
+                    pendingBuffer = nil
+                    inputStatus.pointee = .haveData
+                    return next
+                }
+                inputStatus.pointee = .noDataNow
+                return nil
+            }
+            if status == .error {
+                throw TranscriptionError.audioSetupFailed(nsError?.localizedDescription ?? "audio conversion failed")
+            }
+            return output
         }
     }
 #endif

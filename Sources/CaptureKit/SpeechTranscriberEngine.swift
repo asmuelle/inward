@@ -72,7 +72,7 @@
             self.outputContinuation = outputContinuation
 
             try configureAudioSession()
-            try installTap(continuation: inputContinuation, transcriber: transcriber)
+            try await installTap(continuation: inputContinuation, transcriber: transcriber)
             try await analyzer.start(inputSequence: inputStream)
 
             resultTask = Task { [weak self] in
@@ -125,22 +125,47 @@
             // input device directly, so there is nothing to configure here.
         }
 
+        /// Maximum waits for the input device format to become valid after a
+        /// microphone grant, at `tapReadyPollInterval` apart.
+        private static let tapReadyAttempts = 8
+        private static let tapReadyPollInterval = Duration.milliseconds(120)
+
         private func installTap(
             continuation: AsyncStream<AnalyzerInput>.Continuation,
             transcriber: SpeechTranscriber
-        ) throws {
+        ) async throws {
             let inputNode = audioEngine.inputNode
-            let tapFormat = inputNode.outputFormat(forBus: 0)
+            // Engage the input node before reading its format. Right after a
+            // microphone grant — especially on macOS — the device format is
+            // briefly 0ch/0Hz until the audio HAL exposes it to the now-authorized
+            // process; prepare() nudges that along, then we poll until it's ready.
+            audioEngine.prepare()
+            var tapFormat = inputNode.outputFormat(forBus: 0)
+            var attempt = 0
+            while !Self.isValid(tapFormat), attempt < Self.tapReadyAttempts {
+                try? await Task.sleep(for: Self.tapReadyPollInterval)
+                tapFormat = inputNode.outputFormat(forBus: 0)
+                attempt += 1
+            }
+            // installTap validates the format and throws an Obj-C exception on an
+            // invalid one, which Swift can't catch — it would abort the process.
+            // Fail into the text path instead (invariant #9) if it never settles.
+            guard Self.isValid(tapFormat) else {
+                throw TranscriptionError.audioSetupFailed("microphone input is not ready")
+            }
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: tapFormat) { buffer, _ in
                 continuation.yield(AnalyzerInput(buffer: buffer))
             }
-            audioEngine.prepare()
             do {
                 try audioEngine.start()
             } catch {
                 inputNode.removeTap(onBus: 0)
                 throw TranscriptionError.audioSetupFailed(error.localizedDescription)
             }
+        }
+
+        private static func isValid(_ format: AVAudioFormat) -> Bool {
+            format.channelCount > 0 && format.sampleRate > 0
         }
     }
 #endif

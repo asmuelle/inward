@@ -1,5 +1,6 @@
 import CaptureKit
 import DesignSystem
+import InsightKit
 import JournalStore
 import JournalStoreSQLCipher
 import PaywallKit
@@ -22,6 +23,7 @@ struct InwardApp: App {
                 store: store,
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
+                entityExtractor: Self.makeEntityExtractor(),
                 authenticator: LocalAuthenticationAuthenticator(),
                 purchaseGateway: StoreKitPurchaseGateway(),
                 trialStartedAt: Prefs.trialStart()
@@ -34,6 +36,16 @@ struct InwardApp: App {
     /// themes (handled in WeeklyReviewModel), so the feature is never empty.
     private static func makeReviewProvider() -> any WeeklyReviewProviding {
         FoundationModelsWeeklyReviewProvider()
+    }
+
+    /// Entity/topic extraction for the background indexer: Apple Intelligence when
+    /// present, the deterministic NaturalLanguage floor otherwise. The indexer also
+    /// falls back per-run if the model turns out unavailable (invariant #9).
+    private static func makeEntityExtractor() -> any EntityExtracting {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return FoundationModelsEntityExtractor()
+        }
+        return NaturalLanguageEntityExtractor()
     }
 
     /// The SQLCipher-encrypted journal database in Application Support, keyed from

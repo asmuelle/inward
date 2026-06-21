@@ -39,6 +39,7 @@ targets:
           - RecallKit
           - PaywallKit
           - QuickCaptureKit
+          - InsightKit
       # The widget/Control Center extension is iOS-only; embed it only in iOS
       # builds so the macOS app (which has no widget) still links cleanly.
       - target: InwardWidgets

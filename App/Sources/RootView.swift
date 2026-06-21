@@ -1,5 +1,6 @@
 import CaptureKit
 import DesignSystem
+import InsightKit
 import JournalStore
 import PaywallKit
 import PrivacyKit
@@ -17,6 +18,7 @@ struct RootView: View {
     @State private var model: TimelineModel
     @State private var lock: LockGateModel
     @State private var paywall: PaywallModel
+    @State private var insightIndexer: InsightIndexer
     @State private var isCapturing = false
     @State private var isWriting = false
     @State private var isShowingSettings = false
@@ -45,6 +47,7 @@ struct RootView: View {
         store: any JournalStoring,
         engine: (any TranscriptionEngine)?,
         reviewProvider: any WeeklyReviewProviding,
+        entityExtractor: any EntityExtracting,
         authenticator: any BiometricAuthenticating,
         purchaseGateway: any PurchaseGateway,
         trialStartedAt: Date
@@ -58,6 +61,7 @@ struct RootView: View {
             isEnabled: { UserDefaults.standard.bool(forKey: Prefs.lockEnabled) }
         ))
         _paywall = State(initialValue: PaywallModel(gateway: purchaseGateway, trialStartedAt: trialStartedAt))
+        _insightIndexer = State(initialValue: InsightIndexer(store: store, primary: entityExtractor))
     }
 
     /// New writing is gated when the trial lapses without a purchase; reading,
@@ -114,6 +118,14 @@ struct RootView: View {
         }
     }
 
+    /// Refresh the timeline after a new entry, then let the indexer pick it up.
+    private func refreshAndIndex() {
+        Task {
+            await model.refresh()
+            await insightIndexer.indexPending()
+        }
+    }
+
     var body: some View {
         adaptiveLayout
             .tint(.inwardClay)
@@ -149,6 +161,8 @@ struct RootView: View {
             .task { await model.refresh() }
             .task { await paywall.refresh() }
             .task { await paywall.observeUpdates() }
+            // Backfill + keep insights current, gently in the background.
+            .task { await insightIndexer.indexPending() }
             // Quick-capture: handle a request already pending at launch, react to
             // new ones, and release a lock-deferred one once the lock opens.
             .task { handleQuickCapture(token: quickCapture.requestToken) }
@@ -161,12 +175,12 @@ struct RootView: View {
                     beginCapture(autoStart: true)
                 }
             }
-            .sheet(isPresented: $isCapturing, onDismiss: { autoStartCapture = false; Task { await model.refresh() } }) {
+            .sheet(isPresented: $isCapturing, onDismiss: { autoStartCapture = false; refreshAndIndex() }) {
                 CaptureView(coordinator: makeCoordinator(), autoStart: autoStartCapture) {
                     isCapturing = false
                 }
             }
-            .sheet(isPresented: $isWriting, onDismiss: { Task { await model.refresh() } }) {
+            .sheet(isPresented: $isWriting, onDismiss: { refreshAndIndex() }) {
                 WriteEntryView(coordinator: makeCoordinator()) {
                     isWriting = false
                 }

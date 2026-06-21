@@ -25,9 +25,9 @@ struct PaywallView: View {
             }
             .background(Color.inwardPaper.ignoresSafeArea())
             .navigationTitle(Copy.paywallTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            .inwardInlineTitle()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .inwardTrailing) {
                     Button(Copy.paywallClose) { dismiss() }
                         .font(.lamplight(.chrome))
                 }

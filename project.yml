@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: app.inward
   deploymentTarget:
     iOS: "26.0"
+    macOS: "26.0"
   createIntermediateGroups: true
 
 packages:
@@ -21,7 +22,7 @@ settings:
 targets:
   Inward:
     type: application
-    platform: iOS
+    supportedDestinations: [iOS, macOS]
     sources:
       - App/Sources
     dependencies:
@@ -45,7 +46,12 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcription happens on this phone."
         INFOPLIST_KEY_NSFaceIDUsageDescription: "Inward can use Face ID so only you can open your journal."
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone + iPad; macOS ignores this key.
+        TARGETED_DEVICE_FAMILY: "1,2"
+        # App Sandbox + mic + user-selected file access, macOS SDK only — iOS
+        # signing is unaffected (it has no entitlements file).
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": App/Inward-macOS.entitlements
+        "INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]": public.app-category.healthcare-fitness
 
   InwardTests:
     type: bundle.unit-test

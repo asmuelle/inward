@@ -6,6 +6,9 @@ import SwiftUI
 /// date and source as quiet sage metadata.
 struct TimelineRow: View {
     let entry: Entry
+    /// Drawn selected in the iPad/macOS split layout, where the timeline stays
+    /// visible beside the open entry. Always false in the iPhone push layout.
+    var isSelected: Bool = false
 
     var body: some View {
         PaperCard {
@@ -24,6 +27,12 @@ struct TimelineRow: View {
                 .foregroundStyle(Color.inwardSage)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: Lamplight.Surface.cardRadius, style: .continuous)
+                    .stroke(Color.inwardClay, lineWidth: 2)
+            }
         }
     }
 

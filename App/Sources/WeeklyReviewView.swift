@@ -5,9 +5,6 @@ import ReflectKit
 import SafetyKit
 import SwiftUI
 
-/// Value route for pushing the weekly review onto the home navigation stack.
-struct WeeklyReviewRoute: Hashable {}
-
 /// Assembles the week from the store, runs it through the verified-citation
 /// pipeline, and exposes the outcome plus an id→entry lookup so citations can
 /// open the original entries. Read-only; never writes.
@@ -38,7 +35,9 @@ final class WeeklyReviewModel {
         self.calendar = calendar
     }
 
-    var hasEntriesThisWeek: Bool { !entriesByID.isEmpty }
+    var hasEntriesThisWeek: Bool {
+        !entriesByID.isEmpty
+    }
 
     func load() async {
         let entries: [Entry]
@@ -66,7 +65,9 @@ final class WeeklyReviewModel {
         }
     }
 
-    func entry(for id: UUID) -> Entry? { entriesByID[id] }
+    func entry(for id: UUID) -> Entry? {
+        entriesByID[id]
+    }
 
     /// Uses the summary precomputed and stored at save time (JournalStore.EntrySummary).
     static func reviewable(_ entry: Entry) -> ReviewableEntry {
@@ -95,7 +96,7 @@ struct WeeklyReviewView: View {
         }
         .background(Color.inwardPaper.ignoresSafeArea())
         .navigationTitle(Copy.weeklyReviewTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .inwardInlineTitle()
         .task { await model.load() }
     }
 
@@ -205,7 +206,7 @@ struct WeeklyReviewView: View {
             .foregroundStyle(Color.inwardSage)
     }
 
-    @ViewBuilder private func citations(_ ids: [UUID]) -> some View {
+    private func citations(_ ids: [UUID]) -> some View {
         VStack(alignment: .leading, spacing: Lamplight.Spacing.hairline) {
             ForEach(ids, id: \.self) { id in
                 if let entry = model.entry(for: id) {

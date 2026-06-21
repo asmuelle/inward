@@ -10,6 +10,8 @@ public enum Copy {
 
     public static let timelineTitle = "Inward"
     public static let timelineEmpty = "Nothing here yet. When you're ready, speak — your words stay on this phone."
+    /// Shown in the detail pane of the iPad/macOS split layout before a pick.
+    public static let detailPlaceholder = "Choose an entry to read it here."
     public static let spokenLabel = "Spoken"
     public static let writtenLabel = "Written"
 
@@ -64,6 +66,8 @@ public enum Copy {
     public static let settingsLockFooter = "Ask for Face ID, Touch ID, or your passcode each time Inward opens. Applies the next time you open the app."
     public static let settingsExport = "Export your journal"
     public static let settingsExportFooter = "Save an encrypted copy you can keep anywhere. Only your passphrase can open it, so store it somewhere safe — it can't be recovered."
+    public static let settingsImport = "Bring in a journal"
+    public static let settingsImportFooter = "Open an encrypted export from another device. Entries you already have stay untouched; only new ones are added."
     public static let settingsPrivacyFooter = "No accounts. No servers. No tracking."
 
     // MARK: Export
@@ -78,6 +82,27 @@ public enum Copy {
     public static let exportReady = "Your encrypted journal is ready."
     public static let exportShare = "Save or share"
     public static let exportFailed = "Couldn't create the export. Nothing left this phone; try again."
+
+    // MARK: Import
+
+    public static let importTitle = "Bring in a journal"
+    public static let importHint = "Choose an encrypted export from another device, then enter the passphrase you sealed it with. Entries you already have stay as they are."
+    public static let importPassphrasePrompt = "Enter the passphrase"
+    public static let importChooseFile = "Choose a backup file"
+    public static let importAction = "Open and merge"
+    public static let importWorking = "Opening…"
+    public static let importPassphraseRequired = "Enter the passphrase first."
+    public static let importWrongPassphrase = "That passphrase didn't open the file, or the file was changed. Nothing was imported."
+    public static let importFailed = "Couldn't open that file. Nothing on this device changed."
+
+    /// Result line: "Added 12 entries." / "Added 1 entry." / "Already up to date."
+    public static func importDone(added: Int) -> String {
+        switch added {
+        case 0: "Already up to date — nothing new to add."
+        case 1: "Added 1 entry."
+        default: "Added \(added) entries."
+        }
+    }
 
     // MARK: Membership / paywall
 
@@ -101,6 +126,7 @@ public enum Copy {
         appName,
         timelineTitle,
         timelineEmpty,
+        detailPlaceholder,
         spokenLabel,
         writtenLabel,
         recordAccessibility,
@@ -142,6 +168,17 @@ public enum Copy {
         exportReady,
         exportShare,
         exportFailed,
+        settingsImport,
+        settingsImportFooter,
+        importTitle,
+        importHint,
+        importPassphrasePrompt,
+        importChooseFile,
+        importAction,
+        importWorking,
+        importPassphraseRequired,
+        importWrongPassphrase,
+        importFailed,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

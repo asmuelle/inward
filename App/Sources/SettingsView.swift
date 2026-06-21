@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.lockEnabled) private var lockEnabled = false
     @Environment(\.dismiss) private var dismiss
     @State private var showingExport = false
+    @State private var showingImport = false
 
     var body: some View {
         NavigationStack {
@@ -17,6 +18,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.section) {
                     lockSection
                     exportSection
+                    importSection
                     Text(Copy.settingsPrivacyFooter)
                         .font(.lamplight(.caption))
                         .foregroundStyle(Color.inwardSage)
@@ -26,15 +28,18 @@ struct SettingsView: View {
             }
             .background(Color.inwardPaper.ignoresSafeArea())
             .navigationTitle(Copy.settingsTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            .inwardInlineTitle()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .inwardTrailing) {
                     Button(Copy.settingsDone) { dismiss() }
                         .font(.lamplight(.chrome))
                 }
             }
             .sheet(isPresented: $showingExport) {
                 ExportView(store: store)
+            }
+            .sheet(isPresented: $showingImport) {
+                ImportView(store: store)
             }
         }
     }
@@ -73,6 +78,30 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 Text(Copy.settingsExportFooter)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var importSection: some View {
+        PaperCard {
+            VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+                Button {
+                    showingImport = true
+                } label: {
+                    HStack {
+                        Text(Copy.settingsImport)
+                            .font(.lamplight(.entryProse))
+                            .foregroundStyle(Color.inwardInk)
+                        Spacer()
+                        Image(systemName: "square.and.arrow.down")
+                            .foregroundStyle(Color.inwardClay)
+                    }
+                }
+                .buttonStyle(.plain)
+                Text(Copy.settingsImportFooter)
                     .font(.lamplight(.caption))
                     .foregroundStyle(Color.inwardSage)
                     .fixedSize(horizontal: false, vertical: true)

@@ -27,6 +27,6 @@ struct EntryDetailView: View {
             .padding(Lamplight.Spacing.block)
         }
         .background(Color.inwardPaper.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
+        .inwardInlineTitle()
     }
 }

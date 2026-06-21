@@ -58,11 +58,15 @@ struct InwardApp: App {
     }
 
     /// On-device ASR when the OS provides it; otherwise nil and the text path
-    /// carries the whole journaling loop (invariant #9).
+    /// carries the whole journaling loop (invariant #9). The SpeechTranscriber
+    /// engine is iOS-only (it drives AVAudioSession); macOS journals via text
+    /// until a desktop audio path lands.
     private static func makeEngine() -> (any TranscriptionEngine)? {
-        if #available(iOS 26.0, *) {
-            return SpeechTranscriberEngine()
-        }
+        #if os(iOS)
+            if #available(iOS 26.0, *) {
+                return SpeechTranscriberEngine()
+            }
+        #endif
         return nil
     }
 }

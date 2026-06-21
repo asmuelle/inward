@@ -112,9 +112,9 @@ struct ExportView: View {
             }
             .background(Color.inwardPaper.ignoresSafeArea())
             .navigationTitle(Copy.exportTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            .inwardInlineTitle()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .inwardTrailing) {
                     Button(Copy.settingsDone) { dismiss() }
                         .font(.lamplight(.chrome))
                 }

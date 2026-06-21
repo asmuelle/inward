@@ -129,6 +129,65 @@ struct SQLCipherJournalStoreTests {
         }
     }
 
+    @Test("tags round-trip, normalized and deduped, sorted by name")
+    func tagsRoundTrip() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+
+        try await store.setTags(["Mornings", " mornings ", "Work", ""], for: entry.id)
+
+        #expect(try await store.tags(for: entry.id).map(\.name) == ["mornings", "work"])
+    }
+
+    @Test("allTags lists the vocabulary and entries(withTag:) filters case-insensitively")
+    func allTagsAndFilter() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let a = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let b = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: a, transcription: nil)
+        try await store.save(entry: b, transcription: nil)
+        try await store.setTags(["work"], for: a.id)
+        try await store.setTags(["home"], for: b.id)
+
+        #expect(try await store.allTags().map(\.name) == ["home", "work"])
+        #expect(try await store.entries(withTag: "WORK").map(\.id) == [a.id])
+    }
+
+    @Test("retagging prunes tags that no entry references anymore")
+    func retaggingPrunesOrphans() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setTags(["temp"], for: entry.id)
+
+        try await store.setTags(["keep"], for: entry.id)
+
+        #expect(try await store.allTags().map(\.name) == ["keep"])
+    }
+
+    @Test("deleting an entry removes its tag links and prunes orphans")
+    func deletePrunesTags() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setTags(["solo"], for: entry.id)
+
+        try await store.delete(entryID: entry.id)
+
+        #expect(try await store.allTags().isEmpty)
+    }
+
+    @Test("tagging a missing entry throws entryNotFound")
+    func setTagsMissingThrows() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let ghost = UUID()
+
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.setTags(["x"], for: ghost)
+        }
+    }
+
     @Test("journal persists across store instances on the same file and key")
     func persistsAcrossInstances() async throws {
         let url = temporaryDatabaseURL()

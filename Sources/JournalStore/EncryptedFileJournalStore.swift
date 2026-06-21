@@ -8,12 +8,20 @@ import Foundation
 /// The GRDB+SQLCipher store planned in DESIGN.md replaces this behind the same
 /// `JournalStoring` protocol once entry volume warrants a real database.
 public actor EncryptedFileJournalStore: JournalStoring {
+    private struct EntryTagLink: Codable, Hashable {
+        var entryId: UUID
+        var tagId: UUID
+    }
+
     private struct JournalDatabase: Codable {
         var schemaVersion: Int
         var entries: [Entry]
         var transcriptions: [Transcription]
+        // Optional so archives written before tags decode cleanly (nil → empty).
+        var tags: [Tag]?
+        var entryTags: [EntryTagLink]?
 
-        static let empty = JournalDatabase(schemaVersion: 1, entries: [], transcriptions: [])
+        static let empty = JournalDatabase(schemaVersion: 1, entries: [], transcriptions: [], tags: [], entryTags: [])
     }
 
     private let fileURL: URL
@@ -67,7 +75,62 @@ public actor EncryptedFileJournalStore: JournalStoring {
         }
         database.entries.remove(at: index)
         database.transcriptions.removeAll { $0.entryId == entryID }
+        database.entryTags = (database.entryTags ?? []).filter { $0.entryId != entryID }
+        database.tags = Self.pruningOrphans(database)
         try persist(database)
+    }
+
+    // MARK: - Tags
+
+    public func allTags() async throws -> [Tag] {
+        try (loadDatabase().tags ?? []).sorted { $0.name < $1.name }
+    }
+
+    public func tags(for entryID: UUID) async throws -> [Tag] {
+        let database = try loadDatabase()
+        let tagsByID = Dictionary(uniqueKeysWithValues: (database.tags ?? []).map { ($0.id, $0) })
+        return (database.entryTags ?? [])
+            .filter { $0.entryId == entryID }
+            .compactMap { tagsByID[$0.tagId] }
+            .sorted { $0.name < $1.name }
+    }
+
+    public func setTags(_ names: [String], for entryID: UUID) async throws {
+        let normalized = Tag.normalizedNames(names)
+        var database = try loadDatabase()
+        guard database.entries.contains(where: { $0.id == entryID }) else {
+            throw JournalStoreError.entryNotFound(entryID)
+        }
+        var tags = database.tags ?? []
+        var links = (database.entryTags ?? []).filter { $0.entryId != entryID }
+        for name in normalized {
+            let tag = tags.first { $0.name == name } ?? {
+                let created = Tag(name: name)
+                tags.append(created)
+                return created
+            }()
+            links.append(EntryTagLink(entryId: entryID, tagId: tag.id))
+        }
+        database.tags = tags
+        database.entryTags = links
+        database.tags = Self.pruningOrphans(database)
+        try persist(database)
+    }
+
+    public func entries(withTag tagName: String) async throws -> [Entry] {
+        let name = Tag.normalize(tagName)
+        let database = try loadDatabase()
+        guard let tag = (database.tags ?? []).first(where: { $0.name == name }) else { return [] }
+        let entryIDs = Set((database.entryTags ?? []).filter { $0.tagId == tag.id }.map(\.entryId))
+        return database.entries
+            .filter { entryIDs.contains($0.id) }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Tags still referenced by at least one link — the rest are pruned.
+    private static func pruningOrphans(_ database: JournalDatabase) -> [Tag] {
+        let referenced = Set((database.entryTags ?? []).map(\.tagId))
+        return (database.tags ?? []).filter { referenced.contains($0.id) }
     }
 
     // MARK: - Sealed file handling

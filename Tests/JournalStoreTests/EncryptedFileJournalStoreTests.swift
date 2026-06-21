@@ -165,6 +165,41 @@ struct EncryptedFileJournalStoreTests {
         #expect(updated.updatedAt > entry.createdAt)
     }
 
+    @Test("tags round-trip (normalized) and filter entries, surviving a reopen")
+    func tagsRoundTripAndPersist() async throws {
+        let url = temporaryStoreURL()
+        let key = StaticKeyProvider(key: SymmetricKey(size: .bits256))
+        let store = EncryptedFileJournalStore(fileURL: url, keyProvider: key)
+        let a = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let b = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: a, transcription: nil)
+        try await store.save(entry: b, transcription: nil)
+        try await store.setTags(["Work", " work "], for: a.id)
+        try await store.setTags(["home"], for: b.id)
+
+        // Survives a fresh instance reading the sealed file.
+        let reopened = EncryptedFileJournalStore(fileURL: url, keyProvider: key)
+        #expect(try await reopened.tags(for: a.id).map(\.name) == ["work"])
+        #expect(try await reopened.allTags().map(\.name) == ["home", "work"])
+        #expect(try await reopened.entries(withTag: "WORK").map(\.id) == [a.id])
+    }
+
+    @Test("deleting an entry prunes its tags, and tagging a missing entry throws")
+    func deletePrunesTagsAndMissingThrows() async throws {
+        let store = EncryptedFileJournalStore(fileURL: temporaryStoreURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setTags(["solo"], for: entry.id)
+
+        try await store.delete(entryID: entry.id)
+        #expect(try await store.allTags().isEmpty)
+
+        let ghost = UUID()
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.setTags(["x"], for: ghost)
+        }
+    }
+
     @Test("empty store reads as empty, not as an error")
     func emptyStoreReadsEmpty() async throws {
         // Arrange

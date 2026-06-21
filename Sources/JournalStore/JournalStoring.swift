@@ -31,4 +31,20 @@ public protocol JournalStoring: Sendable {
     /// if no entry has that id. There is no recovery in the store — the app's only
     /// safety net is the in-session undo it offers around this call.
     func delete(entryID: UUID) async throws
+
+    // MARK: - Tags
+
+    /// Every tag in use across the journal, sorted by name.
+    func allTags() async throws -> [Tag]
+
+    /// The tags on one entry, sorted by name.
+    func tags(for entryID: UUID) async throws -> [Tag]
+
+    /// Replaces the entry's tags with the given names (normalized; empties and
+    /// duplicates dropped). Creates tags that don't exist yet and prunes any that
+    /// no entry references anymore. Throws `entryNotFound` if the entry is absent.
+    func setTags(_ names: [String], for entryID: UUID) async throws
+
+    /// Entries carrying the given tag (matched on its normalized name), newest first.
+    func entries(withTag tagName: String) async throws -> [Entry]
 }

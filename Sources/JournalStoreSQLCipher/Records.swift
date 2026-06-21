@@ -80,6 +80,32 @@ struct TranscriptionRecord: Codable, FetchableRecord, PersistableRecord {
     }
 }
 
+struct TagRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "tag"
+
+    var id: String
+    var name: String
+    var createdAt: Date
+
+    init(_ tag: Tag, createdAt: Date) {
+        id = tag.id.uuidString
+        name = tag.name
+        self.createdAt = createdAt
+    }
+
+    func toTag() -> Tag? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        return Tag(id: uuid, name: name)
+    }
+}
+
+struct EntryTagRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "entry_tag"
+
+    var entryId: String
+    var tagId: String
+}
+
 enum JournalSchema {
     static let migrator: DatabaseMigrator = {
         var migrator = DatabaseMigrator()
@@ -118,6 +144,22 @@ enum JournalSchema {
                 t.add(column: "updatedAt", .datetime)
             }
             try db.execute(sql: "UPDATE \(EntryRecord.databaseTableName) SET updatedAt = createdAt WHERE updatedAt IS NULL")
+        }
+        // Free-form tags: a tag vocabulary plus a many-to-many join. Both sides
+        // cascade — deleting an entry drops its links; pruning a tag drops links too.
+        migrator.registerMigration("v4-tags") { db in
+            try db.create(table: TagRecord.databaseTableName) { t in
+                t.primaryKey("id", .text)
+                t.column("name", .text).notNull().unique()
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(table: EntryTagRecord.databaseTableName) { t in
+                t.column("entryId", .text).notNull().indexed()
+                    .references(EntryRecord.databaseTableName, onDelete: .cascade)
+                t.column("tagId", .text).notNull().indexed()
+                    .references(TagRecord.databaseTableName, onDelete: .cascade)
+                t.primaryKey(["entryId", "tagId"])
+            }
         }
         return migrator
     }()

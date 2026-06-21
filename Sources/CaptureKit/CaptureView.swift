@@ -7,9 +7,15 @@
     public struct CaptureView: View {
         @Bindable private var coordinator: CaptureCoordinator
         private let onFinished: () -> Void
+        private let autoStart: Bool
 
-        public init(coordinator: CaptureCoordinator, onFinished: @escaping () -> Void = {}) {
+        public init(
+            coordinator: CaptureCoordinator,
+            autoStart: Bool = false,
+            onFinished: @escaping () -> Void = {}
+        ) {
             self.coordinator = coordinator
+            self.autoStart = autoStart
             self.onFinished = onFinished
         }
 
@@ -21,6 +27,13 @@
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.inwardPaper.ignoresSafeArea())
             .animation(.easeOut(duration: Lamplight.Motion.standard), value: coordinator.state)
+            .task {
+                // Quick-capture entry points (Siri, Back Tap, widget, …) open
+                // straight into recording instead of waiting for a button tap.
+                if autoStart, case .idle = coordinator.state {
+                    await coordinator.startRecording()
+                }
+            }
         }
 
         @ViewBuilder private var content: some View {

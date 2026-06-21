@@ -3,6 +3,7 @@ import DesignSystem
 import JournalStore
 import PaywallKit
 import PrivacyKit
+import QuickCaptureKit
 import ReflectKit
 import SwiftUI
 
@@ -21,6 +22,14 @@ struct RootView: View {
     @State private var isShowingSettings = false
     @State private var isShowingPaywall = false
     @State private var selection: DetailRoute?
+
+    /// Quick-capture (Siri/Back Tap/widget/Control Center) signals through this
+    /// shared object; `autoStartCapture` opens straight into recording, and a
+    /// request that arrives while locked waits in `pendingQuickCapture`.
+    private let quickCapture = QuickCaptureSignal.shared
+    @State private var autoStartCapture = false
+    @State private var pendingQuickCapture = false
+    @State private var lastQuickCaptureToken = 0
 
     @AppStorage(Prefs.hasOnboarded) private var hasOnboarded = false
     @Environment(\.scenePhase) private var scenePhase
@@ -49,12 +58,29 @@ struct RootView: View {
 
     /// New writing is gated when the trial lapses without a purchase; reading,
     /// weekly review, and export stay free (invariant #8).
-    private func beginCapture() {
-        if paywall.isLocked { isShowingPaywall = true } else { isCapturing = true }
+    private func beginCapture(autoStart: Bool = false) {
+        if paywall.isLocked {
+            isShowingPaywall = true
+        } else {
+            autoStartCapture = autoStart
+            isCapturing = true
+        }
     }
 
     private func beginWriting() {
         if paywall.isLocked { isShowingPaywall = true } else { isWriting = true }
+    }
+
+    /// A quick-capture trigger fired. Begin recording now if unlocked; otherwise
+    /// hold it until the lock opens, so a shortcut can never bypass the lock.
+    private func handleQuickCapture(token: Int) {
+        guard token != lastQuickCaptureToken, token > 0 else { return }
+        lastQuickCaptureToken = token
+        if lock.state == .locked {
+            pendingQuickCapture = true
+        } else {
+            beginCapture(autoStart: true)
+        }
     }
 
     var body: some View {
@@ -92,8 +118,20 @@ struct RootView: View {
             .task { await model.refresh() }
             .task { await paywall.refresh() }
             .task { await paywall.observeUpdates() }
-            .sheet(isPresented: $isCapturing, onDismiss: { Task { await model.refresh() } }) {
-                CaptureView(coordinator: makeCoordinator()) {
+            // Quick-capture: handle a request already pending at launch, react to
+            // new ones, and release a lock-deferred one once the lock opens.
+            .task { handleQuickCapture(token: quickCapture.requestToken) }
+            .onChange(of: quickCapture.requestToken) { _, token in
+                handleQuickCapture(token: token)
+            }
+            .onChange(of: lock.state) { _, state in
+                if state != .locked, pendingQuickCapture {
+                    pendingQuickCapture = false
+                    beginCapture(autoStart: true)
+                }
+            }
+            .sheet(isPresented: $isCapturing, onDismiss: { autoStartCapture = false; Task { await model.refresh() } }) {
+                CaptureView(coordinator: makeCoordinator(), autoStart: autoStartCapture) {
                     isCapturing = false
                 }
             }

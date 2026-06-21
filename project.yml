@@ -38,6 +38,11 @@ targets:
           - ReflectKit
           - RecallKit
           - PaywallKit
+          - QuickCaptureKit
+      # The widget/Control Center extension is iOS-only; embed it only in iOS
+      # builds so the macOS app (which has no widget) still links cleanly.
+      - target: InwardWidgets
+        platformFilter: iOS
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.inward.Inward
@@ -59,6 +64,24 @@ targets:
         # Contents/Frameworks is only found via @executable_path/../Frameworks.
         # Without this the app crashes at launch ("can't be opened") loading GRDB.
         "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": [$(inherited), "@executable_path/../Frameworks"]
+
+  InwardWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget:
+      iOS: "26.0"
+    sources:
+      - App/Widgets
+    dependencies:
+      - package: InwardCore
+        products:
+          - QuickCaptureKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.inward.Inward.Widgets
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Widgets/Info.plist
+        CODE_SIGN_STYLE: Automatic
 
   InwardTests:
     type: bundle.unit-test

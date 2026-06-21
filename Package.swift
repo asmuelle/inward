@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "RecallKit", targets: ["RecallKit"]),
         .library(name: "PaywallKit", targets: ["PaywallKit"]),
         .library(name: "JournalStoreSQLCipher", targets: ["JournalStoreSQLCipher"]),
+        .library(name: "QuickCaptureKit", targets: ["QuickCaptureKit"]),
     ],
     dependencies: [
         // GRDB packaged with SQLCipher Community Edition as an XCFramework, the
@@ -42,6 +43,9 @@ let package = Package(
         .target(name: "ReflectKit", dependencies: ["SafetyKit"]),
         .target(name: "RecallKit", dependencies: ["JournalStore"]),
         .target(name: "PaywallKit"),
+        // Shared by the app and the widget/control extension so the App Intent
+        // type is identical across processes.
+        .target(name: "QuickCaptureKit"),
 
         // MARK: Tests
 
@@ -61,6 +65,7 @@ let package = Package(
         .testTarget(name: "ReflectKitTests", dependencies: ["ReflectKit", "SafetyKit"]),
         .testTarget(name: "RecallKitTests", dependencies: ["RecallKit"]),
         .testTarget(name: "PaywallKitTests", dependencies: ["PaywallKit"]),
+        .testTarget(name: "QuickCaptureKitTests", dependencies: ["QuickCaptureKit"]),
         .testTarget(name: "ComplianceTests", dependencies: ["SafetyKit", "DesignSystem"]),
     ]
 )

@@ -31,6 +31,10 @@ struct RootView: View {
     @State private var pendingQuickCapture = false
     @State private var lastQuickCaptureToken = 0
 
+    /// The most recently deleted entry, held for a few seconds so the undo
+    /// snackbar can re-insert it. Hard delete otherwise — no tombstone.
+    @State private var pendingUndo: DeletedSnapshot?
+
     @AppStorage(Prefs.hasOnboarded) private var hasOnboarded = false
     @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
@@ -80,6 +84,33 @@ struct RootView: View {
             pendingQuickCapture = true
         } else {
             beginCapture(autoStart: true)
+        }
+    }
+
+    /// Snapshots the entry (and its transcription) for undo, deletes it, closes
+    /// the detail if it was open, and refreshes the timeline.
+    private func deleteEntry(_ entry: Entry) {
+        Task {
+            let transcription = try? await store.transcription(entryID: entry.id)
+            do {
+                try await store.delete(entryID: entry.id)
+                if case let .entry(selected) = selection, selected.id == entry.id {
+                    selection = nil
+                }
+                pendingUndo = DeletedSnapshot(entry: entry, transcription: transcription)
+                await model.refresh()
+            } catch {
+                // A failed delete leaves the entry in place; nothing to undo.
+            }
+        }
+    }
+
+    private func undoDelete() {
+        guard let snapshot = pendingUndo else { return }
+        pendingUndo = nil
+        Task {
+            try? await store.save(entry: snapshot.entry, transcription: snapshot.transcription)
+            await model.refresh()
         }
     }
 
@@ -143,6 +174,20 @@ struct RootView: View {
             .sheet(isPresented: $isShowingPaywall) {
                 PaywallView(model: paywall)
             }
+            .overlay(alignment: .bottom) {
+                if let pendingUndo {
+                    UndoDeleteBar(onUndo: undoDelete)
+                        .id(pendingUndo.id)
+                        .padding(.bottom, Lamplight.Spacing.stage)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task {
+                            // Auto-dismiss after the undo window; the delete then stands.
+                            try? await Task.sleep(for: .seconds(5))
+                            self.pendingUndo = nil
+                        }
+                }
+            }
+            .animation(.easeOut(duration: Lamplight.Motion.standard), value: pendingUndo?.id)
     }
 
     /// iPhone (compact) pushes the detail over the timeline; iPad and macOS keep
@@ -212,7 +257,12 @@ struct RootView: View {
     @ViewBuilder private func routeView(_ route: DetailRoute) -> some View {
         switch route {
         case let .entry(entry):
-            EntryDetailView(entry: entry)
+            EntryDetailView(
+                entry: entry,
+                store: store,
+                onEdited: { _ in Task { await model.refresh() } },
+                onRequestDelete: { deleteEntry($0) }
+            )
         case .weeklyReview:
             WeeklyReviewView(model: WeeklyReviewModel(store: store, provider: reviewProvider))
         }
@@ -258,6 +308,11 @@ struct RootView: View {
                             TimelineRow(entry: entry, isSelected: isSelectedEntry(entry))
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(Copy.entryDelete, systemImage: "trash", role: .destructive) {
+                                deleteEntry(entry)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, Lamplight.Spacing.block)
@@ -298,6 +353,37 @@ struct RootView: View {
 private enum DetailRoute: Hashable {
     case entry(Entry)
     case weeklyReview
+}
+
+/// A just-deleted entry held for the undo window. Carries the transcription too,
+/// so undo restores the entry exactly as it was.
+private struct DeletedSnapshot: Identifiable {
+    let id = UUID()
+    let entry: Entry
+    let transcription: Transcription?
+}
+
+/// The transient "Entry deleted · Undo" bar shown after a delete.
+private struct UndoDeleteBar: View {
+    let onUndo: () -> Void
+
+    var body: some View {
+        HStack(spacing: Lamplight.Spacing.element) {
+            Text(Copy.entryDeleted)
+                .font(.lamplight(.chrome))
+                .foregroundStyle(Color.inwardPaper)
+            Spacer(minLength: Lamplight.Spacing.block)
+            Button(Copy.entryDeleteUndo, action: onUndo)
+                .font(.lamplight(.chrome))
+                .foregroundStyle(Color.inwardPaper)
+                .fontWeight(.semibold)
+        }
+        .padding(.horizontal, Lamplight.Spacing.block)
+        .padding(.vertical, Lamplight.Spacing.element)
+        .background(Capsule().fill(Color.inwardInk))
+        .padding(.horizontal, Lamplight.Spacing.block)
+        .shadow(color: Color.inwardInk.opacity(0.2), radius: 12, y: 4)
+    }
 }
 
 /// Loads and exposes the timeline. Read-only over the store.

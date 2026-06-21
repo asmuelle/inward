@@ -104,6 +104,19 @@ public enum Copy {
         }
     }
 
+    // MARK: Entry maintenance
+
+    public static let entryEdit = "Edit"
+    public static let entryDelete = "Delete"
+    public static let entryEditSave = "Save"
+    public static let entryEditCancel = "Cancel"
+    /// Quiet marker shown after the date when an entry has been edited.
+    public static let entryEditedMarker = "edited"
+    public static let entryDeleteConfirmTitle = "Delete this entry?"
+    public static let entryDeleteConfirmAction = "Delete"
+    public static let entryDeleted = "Entry deleted"
+    public static let entryDeleteUndo = "Undo"
+
     // MARK: Membership / paywall
 
     public static let paywallTitle = "Keep Inward"
@@ -179,6 +192,15 @@ public enum Copy {
         importPassphraseRequired,
         importWrongPassphrase,
         importFailed,
+        entryEdit,
+        entryDelete,
+        entryEditSave,
+        entryEditCancel,
+        entryEditedMarker,
+        entryDeleteConfirmTitle,
+        entryDeleteConfirmAction,
+        entryDeleted,
+        entryDeleteUndo,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

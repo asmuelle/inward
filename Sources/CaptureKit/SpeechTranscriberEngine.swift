@@ -1,12 +1,14 @@
-#if os(iOS) && canImport(Speech) && canImport(AVFoundation)
+#if (os(iOS) || os(macOS)) && canImport(Speech) && canImport(AVFoundation)
     import AVFoundation
     import Foundation
     import Speech
 
-    /// On-device ASR via the iOS 26 SpeechAnalyzer/SpeechTranscriber pipeline.
-    /// Audio never leaves the device. Any setup failure degrades to text entry —
-    /// voice is an enhancement, never a requirement.
-    @available(iOS 26.0, *)
+    /// On-device ASR via the iOS 26 / macOS 26 SpeechAnalyzer/SpeechTranscriber
+    /// pipeline. Audio never leaves the device. Any setup failure degrades to text
+    /// entry — voice is an enhancement, never a requirement. The capture core
+    /// (AVAudioEngine + SpeechAnalyzer) is shared; only microphone permission and
+    /// audio-session setup differ by platform.
+    @available(iOS 26.0, macOS 26.0, *)
     public actor SpeechTranscriberEngine: TranscriptionEngine {
         public nonisolated let engineKind: TranscriptionEngineKind = .speechTranscriber
 
@@ -25,11 +27,22 @@
             guard supported.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) else {
                 return .unavailable(reason: "locale not supported for on-device transcription")
             }
-            let granted = await AVAudioApplication.requestRecordPermission()
+            let granted = await Self.requestMicrophoneAccess()
             guard granted else {
                 return .unavailable(reason: "microphone permission not granted")
             }
             return .available
+        }
+
+        /// Microphone authorization differs by platform: iOS gates through
+        /// AVAudioApplication, macOS through AVCaptureDevice. Both surface the
+        /// shared NSMicrophoneUsageDescription and resolve to a simple Bool.
+        private static func requestMicrophoneAccess() async -> Bool {
+            #if os(iOS)
+                return await AVAudioApplication.requestRecordPermission()
+            #else
+                return await AVCaptureDevice.requestAccess(for: .audio)
+            #endif
         }
 
         public func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error> {
@@ -95,13 +108,17 @@
         }
 
         private func configureAudioSession() throws {
-            do {
-                let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
-            } catch {
-                throw TranscriptionError.audioSetupFailed(error.localizedDescription)
-            }
+            #if os(iOS)
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                } catch {
+                    throw TranscriptionError.audioSetupFailed(error.localizedDescription)
+                }
+            #endif
+            // macOS has no AVAudioSession: AVAudioEngine reads the system default
+            // input device directly, so there is nothing to configure here.
         }
 
         private func installTap(

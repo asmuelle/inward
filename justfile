@@ -143,9 +143,9 @@ ios-clean:
 
 
 # ─── native macOS build / run ───────────────────────────────────────────
-# Same multiplatform SwiftUI target as iOS. On macOS the journal is text-only
-# (the SpeechTranscriber engine is iOS-only); the encrypted export/import that
-# moves a journal between devices works on every platform.
+# Same multiplatform SwiftUI target as iOS, including on-device voice capture
+# (the SpeechTranscriber engine shares its core across both). Note: real audio
+# capture can't be exercised in the iOS Simulator — verify voice on a device.
 
 # Compile-validate the macOS app without signing (mirrors the iOS CI build).
 mac-build: _require-project

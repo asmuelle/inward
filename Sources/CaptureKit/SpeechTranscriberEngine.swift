@@ -22,9 +22,8 @@
         public init() {}
 
         public func availability() async -> TranscriptionAvailability {
-            let locale = Locale.current
             let supported = await SpeechTranscriber.supportedLocales
-            guard supported.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) else {
+            guard TranscriptionLocale.bestMatch(for: .current, among: supported) != nil else {
                 return .unavailable(reason: "locale not supported for on-device transcription")
             }
             let granted = await Self.requestMicrophoneAccess()
@@ -46,8 +45,13 @@
         }
 
         public func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error> {
+            // Use a locale the model actually supports — Locale.current may be a
+            // region the transcriber doesn't enumerate (e.g. en-DE), which would
+            // otherwise fail at install/recognition time.
+            let supported = await SpeechTranscriber.supportedLocales
+            let locale = TranscriptionLocale.bestMatch(for: .current, among: supported) ?? Locale.current
             let transcriber = SpeechTranscriber(
-                locale: Locale.current,
+                locale: locale,
                 transcriptionOptions: [],
                 reportingOptions: [.volatileResults],
                 attributeOptions: []

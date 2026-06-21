@@ -1,0 +1,48 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSFaceIDUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Inward kan bruge Face ID, så kun du kan åbne din dagbog." } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Inward kann Face ID verwenden, damit nur du dein Journal öffnen kannst." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Inward puede usar Face ID para que solo tú puedas abrir tu diario." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Inward peut utiliser Face ID pour que toi seul puisses ouvrir ton journal." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Inward può usare Face ID così solo tu puoi aprire il tuo diario." } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Inward kan bruke Face ID slik at bare du kan åpne dagboken din." } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "O Inward pode usar o Face ID para que só tu possas abrir o teu diário." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Inward может использовать Face ID, чтобы только ты мог открыть свой дневник." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Inward kan använda Face ID så att bara du kan öppna din dagbok." } }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Inward lytter kun, mens du optager. Lyden transskriberes på denne telefon og forlader den aldrig." } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Inward hört nur zu, während du aufnimmst. Audio wird auf diesem Telefon transkribiert und verlässt es nie." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Inward solo escucha mientras grabas. El audio se transcribe en este teléfono y nunca sale de él." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Inward n’écoute que pendant que tu enregistres. L’audio est transcrit sur ce téléphone et ne le quitte jamais." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Inward ascolta solo mentre registri. L’audio viene trascritto su questo telefono e non lo lascia mai." } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Inward lytter bare mens du tar opp. Lyden transkriberes på denne telefonen og forlater den aldri." } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "O Inward só ouve enquanto gravas. O áudio é transcrito neste telefone e nunca o deixa." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Inward слушает только во время записи. Аудио расшифровывается на этом телефоне и никогда его не покидает." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Inward lyssnar bara medan du spelar in. Ljudet transkriberas på den här telefonen och lämnar den aldrig." } }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Transskriberingen sker på denne telefon." } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die Transkription geschieht auf diesem Telefon." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La transcripción ocurre en este teléfono." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "La transcription se fait sur ce téléphone." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "La trascrizione avviene su questo telefono." } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Transkriberingen skjer på denne telefonen." } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "A transcrição acontece neste telefone." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Расшифровка происходит на этом телефоне." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Transkriberingen sker på den här telefonen." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

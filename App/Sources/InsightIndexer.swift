@@ -33,7 +33,10 @@ final class InsightIndexer {
         isRunning = true
         defer { isRunning = false }
 
-        let extractor = await primary.availability().isAvailable ? primary : fallback
+        // Gate the chosen extractor behind the deterministic crisis gate: on a
+        // crisis match the model never runs and no entities are derived (#5).
+        let chosen = await primary.availability().isAvailable ? primary : fallback
+        let extractor = InsightExtractionPipeline(extractor: chosen)
         var previousBatch: [UUID] = []
 
         while !Task.isCancelled {

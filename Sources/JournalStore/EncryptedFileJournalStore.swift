@@ -168,6 +168,10 @@ public actor EncryptedFileJournalStore: JournalStoring {
         }
     }
 
+    public func entityAssociations() async throws -> [EntityAssociation] {
+        [] // The fallback store keeps no entities.
+    }
+
     // MARK: - Sealed file handling
 
     private func loadDatabase() throws -> JournalDatabase {

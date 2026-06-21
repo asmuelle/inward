@@ -30,3 +30,16 @@ public struct JournalEntity: Sendable, Hashable, Identifiable, Codable {
         name.lowercased()
     }
 }
+
+/// An entity together with the entries that mention it — the raw material the
+/// mind-map graph is built from. `entryIDs.count` is the entity's weight; shared
+/// ids between two associations give the co-occurrence edge between them.
+public struct EntityAssociation: Sendable, Hashable {
+    public let entity: JournalEntity
+    public let entryIDs: [UUID]
+
+    public init(entity: JournalEntity, entryIDs: [UUID]) {
+        self.entity = entity
+        self.entryIDs = entryIDs
+    }
+}

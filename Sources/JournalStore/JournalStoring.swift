@@ -71,4 +71,8 @@ public protocol JournalStoring: Sendable {
     /// Records that the user declined a suggested tag for this entry, so it isn't
     /// offered again. Throws `entryNotFound` if the entry is absent.
     func dismissSuggestion(_ name: String, for entryID: UUID) async throws
+
+    /// Every entity with the entries that mention it — the raw material for the
+    /// mind-map graph. Empty on stores that don't persist entities.
+    func entityAssociations() async throws -> [EntityAssociation]
 }

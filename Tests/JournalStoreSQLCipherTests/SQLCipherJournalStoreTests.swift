@@ -267,6 +267,24 @@ struct SQLCipherJournalStoreTests {
         }
     }
 
+    @Test("entityAssociations pairs each entity with the entries that mention it")
+    func entityAssociationsAcrossEntries() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let first = makeEntry(text: "a", at: Date(timeIntervalSince1970: 2000))
+        let second = makeEntry(text: "b", at: Date(timeIntervalSince1970: 1000))
+        try await store.save(entry: first, transcription: nil)
+        try await store.save(entry: second, transcription: nil)
+        try await store.setEntities([JournalEntity(kind: .place, name: "Berlin")], for: first.id)
+        try await store.setEntities([JournalEntity(kind: .place, name: "berlin")], for: second.id) // same entity
+
+        let associations = try await store.entityAssociations()
+
+        #expect(associations.count == 1)
+        let berlin = try #require(associations.first)
+        #expect(berlin.entity.name == "Berlin")
+        #expect(Set(berlin.entryIDs) == [first.id, second.id])
+    }
+
     @Test("journal persists across store instances on the same file and key")
     func persistsAcrossInstances() async throws {
         let url = temporaryDatabaseURL()

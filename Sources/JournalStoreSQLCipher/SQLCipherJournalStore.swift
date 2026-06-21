@@ -215,6 +215,24 @@ public final class SQLCipherJournalStore: JournalStoring {
         }
     }
 
+    public func entityAssociations() async throws -> [EntityAssociation] {
+        try await read { db in
+            let entities = try EntityRecord.fetchAll(db)
+            let links = try EntryEntityRecord.fetchAll(db)
+            var entryIDsByEntity: [String: [UUID]] = [:]
+            for link in links {
+                guard let entryID = UUID(uuidString: link.entryId) else { continue }
+                entryIDsByEntity[link.entityId, default: []].append(entryID)
+            }
+            return entities.compactMap { record in
+                guard let entity = record.toEntity() else { return nil }
+                let entryIDs = entryIDsByEntity[record.id] ?? []
+                guard !entryIDs.isEmpty else { return nil }
+                return EntityAssociation(entity: entity, entryIDs: entryIDs)
+            }
+        }
+    }
+
     private static func pruneOrphanEntities(_ db: Database) throws {
         try db.execute(
             sql: "DELETE FROM \(EntityRecord.databaseTableName) WHERE id NOT IN (SELECT entityId FROM \(EntryEntityRecord.databaseTableName))"

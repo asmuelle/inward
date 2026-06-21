@@ -71,11 +71,23 @@ public final class SQLCipherJournalStore: JournalStoring {
                 throw JournalStoreError.entryNotFound(entryID)
             }
             record.textEdited = textEdited
+            // Keep the precomputed summary in step with the edit, and advance the
+            // last-edited timestamp. The raw transcript is provenance — untouched.
+            record.summary = EntrySummary.make(from: textEdited)
+            record.updatedAt = Date()
             try record.update(db)
             guard let entry = record.toEntry() else {
                 throw JournalStoreError.corruptDatabase
             }
             return entry
+        }
+    }
+
+    public func delete(entryID: UUID) async throws {
+        try await write { db in
+            // The transcription row cascades automatically (FK onDelete: .cascade).
+            let deleted = try EntryRecord.deleteOne(db, key: entryID.uuidString)
+            guard deleted else { throw JournalStoreError.entryNotFound(entryID) }
         }
     }
 

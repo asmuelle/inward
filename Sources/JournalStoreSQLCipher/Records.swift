@@ -17,6 +17,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
     var summary: String
     var durationSec: Double?
     var mood: String?
+    var updatedAt: Date?
     var locale: String
 
     init(_ entry: Entry) {
@@ -29,6 +30,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
         summary = entry.summary
         durationSec = entry.durationSec
         mood = entry.mood
+        updatedAt = entry.updatedAt
         locale = entry.locale
     }
 
@@ -48,6 +50,8 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
             summary: summary,
             durationSec: durationSec,
             mood: mood,
+            // Rows created before v3 backfill to createdAt (handled in the initializer).
+            updatedAt: updatedAt,
             locale: locale
         )
     }
@@ -106,6 +110,14 @@ enum JournalSchema {
             try db.alter(table: EntryRecord.databaseTableName) { t in
                 t.add(column: "summary", .text).notNull().defaults(to: "")
             }
+        }
+        // Last-edited timestamp. Added nullable, then backfilled to createdAt for
+        // existing rows; new rows always set it, so it is never NULL afterward.
+        migrator.registerMigration("v3-entry-updatedAt") { db in
+            try db.alter(table: EntryRecord.databaseTableName) { t in
+                t.add(column: "updatedAt", .datetime)
+            }
+            try db.execute(sql: "UPDATE \(EntryRecord.databaseTableName) SET updatedAt = createdAt WHERE updatedAt IS NULL")
         }
         return migrator
     }()

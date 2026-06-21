@@ -135,6 +135,34 @@ struct EncryptedFileJournalStoreTests {
         await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
             try await store.updateEditedText(entryID: ghost, textEdited: "anything")
         }
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.delete(entryID: ghost)
+        }
+    }
+
+    @Test("delete removes the entry and its transcription")
+    func deleteRemovesEntryAndTranscription() async throws {
+        let store = EncryptedFileJournalStore(fileURL: temporaryStoreURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        let transcription = Transcription(entryId: entry.id, engine: .mock, confidence: 0.9, completedAt: entry.createdAt)
+        try await store.save(entry: entry, transcription: transcription)
+
+        try await store.delete(entryID: entry.id)
+
+        #expect(try await store.entry(id: entry.id) == nil)
+        #expect(try await store.transcription(entryID: entry.id) == nil)
+        #expect(try await store.allEntries().isEmpty)
+    }
+
+    @Test("editing advances updatedAt past createdAt")
+    func editAdvancesUpdatedAt() async throws {
+        let store = EncryptedFileJournalStore(fileURL: temporaryStoreURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+
+        let updated = try await store.updateEditedText(entryID: entry.id, textEdited: "later words")
+
+        #expect(updated.updatedAt > entry.createdAt)
     }
 
     @Test("empty store reads as empty, not as an error")

@@ -54,10 +54,20 @@ public actor EncryptedFileJournalStore: JournalStoring {
         guard let index = database.entries.firstIndex(where: { $0.id == entryID }) else {
             throw JournalStoreError.entryNotFound(entryID)
         }
-        let updated = database.entries[index].withEditedText(textEdited)
+        let updated = database.entries[index].withEditedText(textEdited, updatedAt: Date())
         database.entries[index] = updated
         try persist(database)
         return updated
+    }
+
+    public func delete(entryID: UUID) async throws {
+        var database = try loadDatabase()
+        guard let index = database.entries.firstIndex(where: { $0.id == entryID }) else {
+            throw JournalStoreError.entryNotFound(entryID)
+        }
+        database.entries.remove(at: index)
+        database.transcriptions.removeAll { $0.entryId == entryID }
+        try persist(database)
     }
 
     // MARK: - Sealed file handling
@@ -88,7 +98,7 @@ public actor EncryptedFileJournalStore: JournalStoring {
 
         do {
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = Self.dateDecoding
             let database = try decoder.decode(JournalDatabase.self, from: plaintext)
             cache = database
             return database
@@ -99,7 +109,7 @@ public actor EncryptedFileJournalStore: JournalStoring {
 
     private func persist(_ database: JournalDatabase) throws {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = Self.dateEncoding
         encoder.outputFormatting = [.sortedKeys]
 
         let plaintext: Data
@@ -131,5 +141,45 @@ public actor EncryptedFileJournalStore: JournalStoring {
         #else
             [.atomic]
         #endif
+    }
+
+    // MARK: - Date coding
+
+    /// ISO8601DateFormatter is thread-safe for date<->string conversion, so sharing
+    /// one instance across isolation domains is safe — hence nonisolated(unsafe).
+    /// Used only to read pre-existing ISO-8601 archives (see `dateDecoding`).
+    private nonisolated(unsafe) static let iso8601Fractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private nonisolated(unsafe) static let iso8601Plain: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    /// Store the raw time interval so any Date — including a sub-second `Date()` —
+    /// reads back bit-for-bit, which ISO-8601 strings (even at millisecond
+    /// resolution) cannot guarantee.
+    private static let dateEncoding = JSONEncoder.DateEncodingStrategy.custom { date, encoder in
+        var container = encoder.singleValueContainer()
+        try container.encode(date.timeIntervalSinceReferenceDate)
+    }
+
+    /// Reads the new numeric form, and still parses pre-existing ISO-8601 archives.
+    private static let dateDecoding = JSONDecoder.DateDecodingStrategy.custom { decoder in
+        let container = try decoder.singleValueContainer()
+        if let interval = try? container.decode(Double.self) {
+            return Date(timeIntervalSinceReferenceDate: interval)
+        }
+        let raw = try container.decode(String.self)
+        if let date = iso8601Fractional.date(from: raw) ?? iso8601Plain.date(from: raw) {
+            return date
+        }
+        throw DecodingError.dataCorrupted(
+            .init(codingPath: decoder.codingPath, debugDescription: "Unrecognized date: \(raw)")
+        )
     }
 }

@@ -60,8 +60,8 @@ struct SQLCipherJournalStoreTests {
     @Test("all entries come back newest first")
     func ordersNewestFirst() async throws {
         let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
-        let older = makeEntry(text: "older", at: Date(timeIntervalSince1970: 1_000))
-        let newer = makeEntry(text: "newer", at: Date(timeIntervalSince1970: 2_000))
+        let older = makeEntry(text: "older", at: Date(timeIntervalSince1970: 1000))
+        let newer = makeEntry(text: "newer", at: Date(timeIntervalSince1970: 2000))
         try await store.save(entry: older, transcription: nil)
         try await store.save(entry: newer, transcription: nil)
 
@@ -90,6 +90,42 @@ struct SQLCipherJournalStoreTests {
 
         await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
             try await store.updateEditedText(entryID: ghost, textEdited: "nope")
+        }
+    }
+
+    @Test("editing advances updatedAt past createdAt and re-summarizes")
+    func editAdvancesUpdatedAt() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        #expect(entry.updatedAt == entry.createdAt)
+
+        let updated = try await store.updateEditedText(entryID: entry.id, textEdited: "A wholly new line.")
+
+        #expect(updated.updatedAt > entry.createdAt)
+        #expect(updated.summary == "A wholly new line.")
+    }
+
+    @Test("delete removes the entry and cascades its transcription")
+    func deleteCascades() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        let transcription = Transcription(entryId: entry.id, engine: .mock, confidence: 0.9, completedAt: entry.createdAt)
+        try await store.save(entry: entry, transcription: transcription)
+
+        try await store.delete(entryID: entry.id)
+
+        #expect(try await store.entry(id: entry.id) == nil)
+        #expect(try await store.transcription(entryID: entry.id) == nil, "the transcription cascades with its entry")
+    }
+
+    @Test("deleting a missing entry throws entryNotFound")
+    func deleteMissingThrows() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let ghost = UUID()
+
+        await #expect(throws: JournalStoreError.entryNotFound(ghost)) {
+            try await store.delete(entryID: ghost)
         }
     }
 

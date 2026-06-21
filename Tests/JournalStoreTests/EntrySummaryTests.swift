@@ -47,9 +47,17 @@ struct EntrySummaryTests {
             textEdited: "First thought here.",
             locale: "en_US"
         )
-        let edited = entry.withEditedText("A different opening line. More after.")
+        let edited = entry.withEditedText("A different opening line. More after.", updatedAt: Date(timeIntervalSince1970: 10))
         #expect(edited.summary == "A different opening line.")
         #expect(edited.transcriptRaw == "x", "the raw transcript is never touched")
+        #expect(edited.updatedAt == Date(timeIntervalSince1970: 10), "editing advances updatedAt")
+    }
+
+    @Test("a fresh entry's updatedAt defaults to its createdAt")
+    func updatedAtDefaultsToCreatedAt() {
+        let createdAt = Date(timeIntervalSince1970: 5000)
+        let entry = Entry(createdAt: createdAt, source: .text, transcriptRaw: "x", textEdited: "Hello there.", locale: "en_US")
+        #expect(entry.updatedAt == createdAt)
     }
 
     @Test("an explicit summary is preserved")

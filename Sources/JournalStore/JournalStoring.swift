@@ -26,4 +26,9 @@ public protocol JournalStoring: Sendable {
     /// The raw transcript is never touched.
     @discardableResult
     func updateEditedText(entryID: UUID, textEdited: String) async throws -> Entry
+
+    /// Permanently removes an entry and its transcription. Throws `entryNotFound`
+    /// if no entry has that id. There is no recovery in the store — the app's only
+    /// safety net is the in-session undo it offers around this call.
+    func delete(entryID: UUID) async throws
 }

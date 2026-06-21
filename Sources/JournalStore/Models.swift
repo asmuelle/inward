@@ -35,6 +35,9 @@ public struct Entry: Sendable, Hashable, Identifiable {
     public let summary: String
     public let durationSec: Double?
     public let mood: String?
+    /// When the entry was last edited. Equals `createdAt` for an untouched entry;
+    /// advanced on each edit. Drives the "edited" marker and future last-writer-wins sync.
+    public let updatedAt: Date
     public let locale: String
 
     public init(
@@ -47,6 +50,7 @@ public struct Entry: Sendable, Hashable, Identifiable {
         summary: String? = nil,
         durationSec: Double? = nil,
         mood: String? = nil,
+        updatedAt: Date? = nil,
         locale: String
     ) {
         self.id = id
@@ -58,12 +62,13 @@ public struct Entry: Sendable, Hashable, Identifiable {
         self.summary = summary ?? EntrySummary.make(from: textEdited)
         self.durationSec = durationSec
         self.mood = mood
+        self.updatedAt = updatedAt ?? createdAt
         self.locale = locale
     }
 
-    /// Returns a copy with the edited text replaced; the summary is recomputed and
-    /// the raw transcript is provenance, so it never changes.
-    public func withEditedText(_ newText: String) -> Entry {
+    /// Returns a copy with the edited text replaced and `updatedAt` advanced; the
+    /// summary is recomputed and the raw transcript is provenance, so it never changes.
+    public func withEditedText(_ newText: String, updatedAt: Date) -> Entry {
         Entry(
             id: id,
             createdAt: createdAt,
@@ -74,6 +79,7 @@ public struct Entry: Sendable, Hashable, Identifiable {
             summary: nil,
             durationSec: durationSec,
             mood: mood,
+            updatedAt: updatedAt,
             locale: locale
         )
     }
@@ -81,24 +87,26 @@ public struct Entry: Sendable, Hashable, Identifiable {
 
 extension Entry: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, createdAt, source, audioFileRef, transcriptRaw, textEdited, summary, durationSec, mood, locale
+        case id, createdAt, source, audioFileRef, transcriptRaw, textEdited, summary, durationSec, mood, updatedAt, locale
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let textEdited = try container.decode(String.self, forKey: .textEdited)
-        self.init(
-            id: try container.decode(UUID.self, forKey: .id),
-            createdAt: try container.decode(Date.self, forKey: .createdAt),
-            source: try container.decode(Source.self, forKey: .source),
-            audioFileRef: try container.decodeIfPresent(String.self, forKey: .audioFileRef),
-            transcriptRaw: try container.decode(String.self, forKey: .transcriptRaw),
+        try self.init(
+            id: container.decode(UUID.self, forKey: .id),
+            createdAt: container.decode(Date.self, forKey: .createdAt),
+            source: container.decode(Source.self, forKey: .source),
+            audioFileRef: container.decodeIfPresent(String.self, forKey: .audioFileRef),
+            transcriptRaw: container.decode(String.self, forKey: .transcriptRaw),
             textEdited: textEdited,
             // Tolerate archives written before summaries existed.
-            summary: try container.decodeIfPresent(String.self, forKey: .summary) ?? EntrySummary.make(from: textEdited),
-            durationSec: try container.decodeIfPresent(Double.self, forKey: .durationSec),
-            mood: try container.decodeIfPresent(String.self, forKey: .mood),
-            locale: try container.decode(String.self, forKey: .locale)
+            summary: container.decodeIfPresent(String.self, forKey: .summary) ?? EntrySummary.make(from: textEdited),
+            durationSec: container.decodeIfPresent(Double.self, forKey: .durationSec),
+            mood: container.decodeIfPresent(String.self, forKey: .mood),
+            // Pre-updatedAt archives fall back to createdAt (via the initializer).
+            updatedAt: container.decodeIfPresent(Date.self, forKey: .updatedAt),
+            locale: container.decode(String.self, forKey: .locale)
         )
     }
 }

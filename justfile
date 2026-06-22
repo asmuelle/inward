@@ -60,8 +60,12 @@ lint: _require-sources
 format: _require-sources
     swiftformat .
 
-# Full gate: lint + build + test (exactly what CI runs)
-ci: lint build test
+# Full gate: lint + iOS build + test + macOS compile-validate (exactly what CI runs).
+# mac-build catches macOS-only compile breaks (voice capture + sandbox entitlements
+# share the multiplatform target). mac-test is intentionally excluded: InwardTests is
+# an iOS-hosted bundle, so the app test suite can't run on macOS without making that
+# target multiplatform — the core SPM tests already run cross-platform under `test`.
+ci: lint build test mac-build
 
 # Render UI surfaces to docs/screenshots/ (uses the chosen simulator)
 screenshots: _require-project

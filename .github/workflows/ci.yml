@@ -50,6 +50,6 @@ jobs:
           brew install xcodegen
           just bootstrap
 
-      - name: Lint, build, test
+      - name: Lint, build, test (incl. macOS compile-validate)
         if: steps.guard.outputs.bootstrapped == 'true'
         run: just ci

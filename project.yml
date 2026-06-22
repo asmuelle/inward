@@ -58,7 +58,7 @@ targets:
         # App Sandbox + mic + user-selected file access, macOS SDK only — iOS
         # signing is unaffected (it has no entitlements file).
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": App/Inward-macOS.entitlements
-        "INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]": public.app-category.healthcare-fitness
+        "INFOPLIST_KEY_LSApplicationCategoryType[sdk=macosx*]": public.app-category.lifestyle
         # GRDB/SQLCipher ships as a dynamic framework embedded in the app. The
         # multiplatform target carries the iOS runpath (@executable_path/Frameworks);
         # on macOS the binary sits in Contents/MacOS, so the framework in

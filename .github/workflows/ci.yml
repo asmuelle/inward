@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: CI only reads the repo — it never writes contents, statuses,
+# PRs, or packages. Restricts the GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   ci:
     # macos-26 ships Xcode 26 / the iOS 26 SDK that the app target (and

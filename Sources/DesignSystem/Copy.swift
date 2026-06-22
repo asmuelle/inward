@@ -181,6 +181,21 @@ public enum Copy {
     public static let mindMapLink = Localized.t("mindMapLink", "Mind map")
     public static let mindMapTitle = Localized.t("mindMapTitle", "Mind map")
     public static let mindMapEmpty = Localized.t("mindMapEmpty", "Names, places, and themes gather here as you write.")
+    public static let mindMapPeople = Localized.t("mindMapPeople", "People")
+    public static let mindMapPlaces = Localized.t("mindMapPlaces", "Places")
+    public static let mindMapThings = Localized.t("mindMapThings", "Things")
+    public static let mindMapTopics = Localized.t("mindMapTopics", "Topics")
+    public static let mindMapSearchPrompt = Localized.t("mindMapSearchPrompt", "Search names and topics")
+    public static let mindMapModeMap = Localized.t("mindMapModeMap", "Map")
+    public static let mindMapModeList = Localized.t("mindMapModeList", "List")
+    public static let mindMapNodeHint = Localized.t("mindMapNodeHint", "Opens the entries it came from")
+
+    /// VoiceOver / list count: "1 mention" / "5 mentions".
+    public static func mindMapMentions(_ count: Int) -> String {
+        count == 1
+            ? Localized.t("mindMapMentionsOne", "1 mention")
+            : String(format: Localized.t("mindMapMentionsMany", "%d mentions"), count)
+    }
 
     // MARK: Membership / paywall
 
@@ -282,6 +297,14 @@ public enum Copy {
         mindMapLink,
         mindMapTitle,
         mindMapEmpty,
+        mindMapPeople,
+        mindMapPlaces,
+        mindMapThings,
+        mindMapTopics,
+        mindMapSearchPrompt,
+        mindMapModeMap,
+        mindMapModeList,
+        mindMapNodeHint,
         paywallTitle,
         paywallSubtitle,
         paywallTrialNote,

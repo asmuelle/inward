@@ -33,6 +33,36 @@
             return .available
         }
 
+        /// Whether the model for the user's locale is already on the device.
+        /// Reported separately from `availability()` so the UI can offer a
+        /// one-time, consented download before voice ever claims to work offline.
+        public func assetReadiness() async -> TranscriptionAssetReadiness {
+            guard let locale = await Self.resolvedLocale() else { return .unsupported }
+            let transcriber = Self.makeTranscriber(for: locale)
+            // A non-nil installation request means the model isn't on the device
+            // yet. Treat any error as downloadable so we never wrongly claim the
+            // offline-ready state.
+            do {
+                let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber])
+                return request == nil ? .installed : .downloadable
+            } catch {
+                return .downloadable
+            }
+        }
+
+        /// Downloads and installs the on-device model for the user's locale. The
+        /// single place in the engine that may reach the network, and only ever
+        /// from an explicit preflight — never from `start()`.
+        public func prepareAssets() async throws {
+            guard let locale = await Self.resolvedLocale() else {
+                throw TranscriptionError.notAvailable
+            }
+            let transcriber = Self.makeTranscriber(for: locale)
+            if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                try await request.downloadAndInstall()
+            }
+        }
+
         /// Microphone authorization differs by platform: iOS gates through
         /// AVAudioApplication, macOS through AVCaptureDevice. Both surface the
         /// shared NSMicrophoneUsageDescription and resolve to a simple Bool.
@@ -50,16 +80,15 @@
             // otherwise fail at install/recognition time.
             let supported = await SpeechTranscriber.supportedLocales
             let locale = TranscriptionLocale.bestMatch(for: .current, among: supported) ?? Locale.current
-            let transcriber = SpeechTranscriber(
-                locale: locale,
-                transcriptionOptions: [],
-                reportingOptions: [.volatileResults],
-                attributeOptions: []
-            )
+            let transcriber = Self.makeTranscriber(for: locale)
             self.transcriber = transcriber
 
-            if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-                try await request.downloadAndInstall()
+            // Recording must never download — that would defeat the airplane-mode
+            // promise. The model has to be installed already (via prepareAssets()
+            // behind a consented preflight); if it isn't, fail cleanly so capture
+            // degrades to the text path (invariant #9) rather than reaching out.
+            if try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) != nil {
+                throw TranscriptionError.assetsNotInstalled
             }
 
             let analyzer = SpeechAnalyzer(modules: [transcriber])
@@ -103,6 +132,23 @@
         }
 
         // MARK: - Internals
+
+        /// The supported on-device locale that best fits the device, or nil when
+        /// the user's language has no model at all. Shared by readiness, prepare,
+        /// and start so all three agree on which model is in play.
+        private static func resolvedLocale() async -> Locale? {
+            let supported = await SpeechTranscriber.supportedLocales
+            return TranscriptionLocale.bestMatch(for: .current, among: supported)
+        }
+
+        private static func makeTranscriber(for locale: Locale) -> SpeechTranscriber {
+            SpeechTranscriber(
+                locale: locale,
+                transcriptionOptions: [],
+                reportingOptions: [.volatileResults],
+                attributeOptions: []
+            )
+        }
 
         private func pumpResults(
             from transcriber: SpeechTranscriber,

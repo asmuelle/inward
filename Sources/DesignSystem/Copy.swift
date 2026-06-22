@@ -35,6 +35,17 @@ public enum Copy {
     public static let captureFailed = Localized.t("captureFailed", "That didn't take. Your words were not lost — try once more.")
     public static let saveFailed = Localized.t("saveFailed", "Couldn't keep that entry. Nothing left this phone; try again.")
 
+    // MARK: Voice preparation (one-time, consented model download)
+
+    public static let voicePrepareTitle = Localized.t("voicePrepareTitle", "Set voice up once")
+    public static let voicePrepareBody = Localized.t(
+        "voicePrepareBody",
+        "Voice needs to bring its language onto this phone first. That's the one time Inward uses a connection — " +
+            "afterwards, recording works in airplane mode and nothing leaves this phone. Writing already works offline."
+    )
+    public static let voicePrepareAction = Localized.t("voicePrepareAction", "Bring voice onto this phone")
+    public static let voicePreparing = Localized.t("voicePreparing", "Bringing voice onto this phone…")
+
     // MARK: Weekly review
 
     public static let weeklyReviewLink = Localized.t("weeklyReviewLink", "This week")
@@ -213,6 +224,10 @@ public enum Copy {
         voiceUnavailable,
         captureFailed,
         saveFailed,
+        voicePrepareTitle,
+        voicePrepareBody,
+        voicePrepareAction,
+        voicePreparing,
         onboardingTitle,
         onboardingPromise,
         onboardingProofTitle,

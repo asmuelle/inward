@@ -4,6 +4,9 @@ import Observation
 
 public enum CaptureFailure: Sendable, Equatable {
     case voiceUnavailable
+    /// Voice is supported but its on-device model isn't installed yet. The UI
+    /// offers a one-time, consented download rather than fetching mid-recording.
+    case voiceNeedsPreparation
     case captureFailed
     case saveFailed
 }
@@ -55,6 +58,13 @@ public final class CaptureCoordinator {
             state = .failed(.voiceUnavailable)
             return
         }
+        // Never let recording trigger a model download — that would breach the
+        // airplane-mode promise (invariant #2). If the model isn't installed yet,
+        // route to the consented preflight instead of starting capture.
+        guard await engine.assetReadiness().isInstalled else {
+            state = .failed(.voiceNeedsPreparation)
+            return
+        }
         do {
             let stream = try await engine.start()
             accumulator = TranscriptAccumulator()
@@ -65,6 +75,26 @@ public final class CaptureCoordinator {
             }
         } catch {
             state = .failed(.captureFailed)
+        }
+    }
+
+    /// Downloads the on-device voice model — the one consented network step,
+    /// invoked only from the preparation prompt, never implicitly. Returns to
+    /// idle on success so the next recording works fully offline; reports
+    /// `voiceUnavailable` on failure so the writer is never stranded.
+    @discardableResult
+    public func prepareVoice() async -> Bool {
+        guard let engine else {
+            state = .failed(.voiceUnavailable)
+            return false
+        }
+        do {
+            try await engine.prepareAssets()
+            state = .idle
+            return true
+        } catch {
+            state = .failed(.voiceUnavailable)
+            return false
         }
     }
 

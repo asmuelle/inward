@@ -1,0 +1,76 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "New entry" : {
+      "comment" : "Quick-record widget and Control Center button label.",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Ny note" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Neuer Eintrag" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Nueva entrada" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle entrée" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Nuova voce" } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Nytt innlegg" } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Nova entrada" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Новая запись" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ny anteckning" } }
+      }
+    },
+    "New Inward entry" : {
+      "comment" : "Control Center control display name.",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Ny Inward-note" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Neuer Inward-Eintrag" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Nueva entrada en Inward" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Nouvelle entrée Inward" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Nuova voce Inward" } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Nytt Inward-innlegg" } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Nova entrada no Inward" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Новая запись в Inward" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ny Inward-anteckning" } }
+      }
+    },
+    "Quick entry" : {
+      "comment" : "Home Screen widget display name.",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Hurtig note" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Schneller Eintrag" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Entrada rápida" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Entrée rapide" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Voce rapida" } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Hurtig innlegg" } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Entrada rápida" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Быстрая запись" } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Snabb anteckning" } }
+      }
+    },
+    "Start a voice entry." : {
+      "comment" : "Control Center control description.",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Start en stemmenote." } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Beginne einen Spracheintrag." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Empieza una entrada de voz." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Commence une entrée vocale." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Inizia una voce vocale." } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Start et taleinnlegg." } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Começa uma entrada de voz." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Начни голосовую запись." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Börja en röstanteckning." } }
+      }
+    },
+    "Tap to start a new Inward voice entry." : {
+      "comment" : "Home Screen widget description.",
+      "localizations" : {
+        "da" : { "stringUnit" : { "state" : "translated", "value" : "Tryk for at starte en ny Inward-stemmenote." } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Tippe, um einen neuen Inward-Spracheintrag zu beginnen." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Toca para empezar una nueva entrada de voz en Inward." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Touche pour commencer une nouvelle entrée vocale Inward." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Tocca per iniziare una nuova voce vocale di Inward." } },
+        "nb" : { "stringUnit" : { "state" : "translated", "value" : "Trykk for å starte et nytt Inward-taleinnlegg." } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Toca para começar uma nova entrada de voz no Inward." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нажми, чтобы начать новую голосовую запись в Inward." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Tryck för att börja en ny röstanteckning i Inward." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

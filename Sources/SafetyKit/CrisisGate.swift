@@ -43,6 +43,15 @@ public struct CrisisGate: Sendable {
         self.resources = resources
     }
 
+    /// Locale-aware gate: the English lexicon plus any additive localized phrases
+    /// for the locale's language, with region-appropriate resources. The English
+    /// floor is always present — localization only widens detection, never narrows
+    /// it — so this stays as deterministic as the English-only gate.
+    public init(localizedFor locale: Locale) {
+        lexicon = CrisisLexicon.merged(forLanguage: locale.language.languageCode?.identifier)
+        resources = SupportResource.localized(for: locale)
+    }
+
     public func evaluate(_ text: String) -> GateDecision {
         let normalized = TextNormalizer.normalize(text)
         guard !normalized.isEmpty else { return .clear }

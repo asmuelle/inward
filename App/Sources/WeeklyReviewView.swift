@@ -53,7 +53,10 @@ final class WeeklyReviewModel {
         entriesByID = Dictionary(weekEntries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         let context = WeekContext(weekStart: weekStart, entries: weekEntries.map(Self.reviewable))
-        let result = await WeeklyReviewPipeline(provider: provider).review(for: context)
+        let result = await WeeklyReviewPipeline(
+            gate: CrisisGate(localizedFor: .current),
+            provider: provider
+        ).review(for: context)
 
         // Model-optional (invariant #9): if the on-device model is unavailable but
         // there are entries, still surface the deterministic recurring themes.

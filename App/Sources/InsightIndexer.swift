@@ -1,6 +1,7 @@
 import Foundation
 import InsightKit
 import JournalStore
+import SafetyKit
 
 /// Fills in derived insights for entries that don't have them yet — new entries
 /// and the one-time backfill alike. Runs in the background, low priority, a few
@@ -36,7 +37,10 @@ final class InsightIndexer {
         // Gate the chosen extractor behind the deterministic crisis gate: on a
         // crisis match the model never runs and no entities are derived (#5).
         let chosen = await primary.availability().isAvailable ? primary : fallback
-        let extractor = InsightExtractionPipeline(extractor: chosen)
+        let extractor = InsightExtractionPipeline(
+            gate: CrisisGate(localizedFor: .current),
+            extractor: chosen
+        )
         var previousBatch: [UUID] = []
 
         while !Task.isCancelled {

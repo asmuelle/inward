@@ -46,6 +46,26 @@ public enum Copy {
     public static let voicePrepareAction = Localized.t("voicePrepareAction", "Bring voice onto this phone")
     public static let voicePreparing = Localized.t("voicePreparing", "Bringing voice onto this phone…")
 
+    // MARK: Spoken summary confirm loop
+
+    /// Shown while the recap is being formed and read aloud.
+    public static let summarizingLabel = Localized.t("summarizingLabel", "Reading it back…")
+    /// "Keep" on the spoken confirm screen — terser than `keepEntry`.
+    public static let confirmKeep = Localized.t("confirmKeep", "Keep")
+    /// "Add more" — invites another spoken round before keeping.
+    public static let confirmAddMore = Localized.t("confirmAddMore", "Add more")
+    /// The fixed open question used when no on-device model is available to
+    /// generate one. Passed to `DeterministicCaptureSummaryProvider`.
+    public static let clarifyDefaultQuestion = Localized.t(
+        "clarifyDefaultQuestion",
+        "What else feels worth saying about this?"
+    )
+    public static let settingsSpokenSummaryToggle = Localized.t("settingsSpokenSummaryToggle", "Read my notes back")
+    public static let settingsSpokenSummaryFooter = Localized.t(
+        "settingsSpokenSummaryFooter",
+        "After a recording, Inward speaks a short summary and asks whether to keep it. Everything stays on this phone."
+    )
+
     // MARK: Weekly review
 
     public static let weeklyReviewLink = Localized.t("weeklyReviewLink", "This week")
@@ -243,6 +263,12 @@ public enum Copy {
         voicePrepareBody,
         voicePrepareAction,
         voicePreparing,
+        summarizingLabel,
+        confirmKeep,
+        confirmAddMore,
+        clarifyDefaultQuestion,
+        settingsSpokenSummaryToggle,
+        settingsSpokenSummaryFooter,
         onboardingTitle,
         onboardingPromise,
         onboardingProofTitle,

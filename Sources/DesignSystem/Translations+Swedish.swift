@@ -94,5 +94,11 @@ extension Translations {
         "paywallReassurance": "Inget konto. Inga servrar. Dina ord lämnar aldrig den här telefonen.",
         "membershipLink": "Medlemskap",
         "stillness": "Fungerar i flygplansläge. Inget lämnar den här telefonen.",
+        "summarizingLabel": "Läser upp det…",
+        "confirmKeep": "Behåll",
+        "confirmAddMore": "Säg mer",
+        "clarifyDefaultQuestion": "Vad mer vill du säga om det här?",
+        "settingsSpokenSummaryToggle": "Läs upp mina anteckningar",
+        "settingsSpokenSummaryFooter": "Efter en inspelning läser Inward upp en kort sammanfattning och frågar om du vill behålla den. Allt stannar på den här telefonen.",
     ]
 }

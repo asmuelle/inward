@@ -24,6 +24,8 @@ struct InwardApp: App {
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
+                summaryProvider: Self.makeSummaryProvider(),
+                synthesizer: Self.makeSynthesizer(),
                 authenticator: LocalAuthenticationAuthenticator(),
                 purchaseGateway: StoreKitPurchaseGateway(),
                 trialStartedAt: Prefs.trialStart()
@@ -75,6 +77,27 @@ struct InwardApp: App {
     private static func makeEngine() -> (any TranscriptionEngine)? {
         if #available(iOS 26.0, macOS 26.0, *) {
             return SpeechTranscriberEngine()
+        }
+        return nil
+    }
+
+    /// Provider for the opt-in spoken-recap loop: Apple Intelligence when present,
+    /// the deterministic floor (the person's own first sentence + a fixed open
+    /// question) otherwise — so the loop works even without a model. The crisis
+    /// gate and output validation live in `CaptureSummaryPipeline`, wired in
+    /// `RootView` only when the setting is on.
+    private static func makeSummaryProvider() -> any CaptureSummaryProviding {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return FoundationModelsCaptureSummaryProvider()
+        }
+        return DeterministicCaptureSummaryProvider(clarificationQuestion: Copy.clarifyDefaultQuestion)
+    }
+
+    /// On-device text-to-speech for the spoken recap; nil below iOS/macOS 26, in
+    /// which case the loop never engages and capture stays on the silent path.
+    private static func makeSynthesizer() -> (any SpeechSynthesisEngine)? {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return AVSpeechSynthesisEngine()
         }
         return nil
     }

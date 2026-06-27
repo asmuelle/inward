@@ -8,6 +8,7 @@ struct SettingsView: View {
     let store: any JournalStoring
 
     @AppStorage(Prefs.lockEnabled) private var lockEnabled = false
+    @AppStorage(Prefs.spokenSummaryEnabled) private var spokenSummaryEnabled = false
     @Environment(\.dismiss) private var dismiss
     @State private var showingExport = false
     @State private var showingImport = false
@@ -17,6 +18,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.section) {
                     lockSection
+                    spokenSummarySection
                     exportSection
                     importSection
                     Text(Copy.settingsPrivacyFooter)
@@ -54,6 +56,23 @@ struct SettingsView: View {
                 }
                 .tint(.inwardClay)
                 Text(Copy.settingsLockFooter)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var spokenSummarySection: some View {
+        PaperCard {
+            VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+                Toggle(isOn: $spokenSummaryEnabled) {
+                    Text(Copy.settingsSpokenSummaryToggle)
+                        .font(.lamplight(.entryProse))
+                        .foregroundStyle(Color.inwardInk)
+                }
+                .tint(.inwardClay)
+                Text(Copy.settingsSpokenSummaryFooter)
                     .font(.lamplight(.caption))
                     .foregroundStyle(Color.inwardSage)
                     .fixedSize(horizontal: false, vertical: true)

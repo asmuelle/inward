@@ -94,5 +94,11 @@ extension Translations {
         "paywallReassurance": "Aucun compte. Aucun serveur. Tes mots ne quittent jamais ce téléphone.",
         "membershipLink": "Abonnement",
         "stillness": "Fonctionne en mode Avion. Rien ne quitte ce téléphone.",
+        "summarizingLabel": "Je te le relis…",
+        "confirmKeep": "Garder",
+        "confirmAddMore": "En dire plus",
+        "clarifyDefaultQuestion": "Qu'aimerais-tu ajouter à ce sujet ?",
+        "settingsSpokenSummaryToggle": "Me relire mes notes",
+        "settingsSpokenSummaryFooter": "Après un enregistrement, Inward lit un court résumé à voix haute et demande si tu veux le garder. Tout reste sur ce téléphone.",
     ]
 }

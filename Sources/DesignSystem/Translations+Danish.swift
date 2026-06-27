@@ -94,5 +94,11 @@ extension Translations {
         "paywallReassurance": "Ingen konto. Ingen servere. Dine ord forlader aldrig denne telefon.",
         "membershipLink": "Medlemskab",
         "stillness": "Virker i flytilstand. Intet forlader denne telefon.",
+        "summarizingLabel": "Læser det op…",
+        "confirmKeep": "Behold",
+        "confirmAddMore": "Sig mere",
+        "clarifyDefaultQuestion": "Hvad mere har du lyst til at sige om det her?",
+        "settingsSpokenSummaryToggle": "Læs mine noter op",
+        "settingsSpokenSummaryFooter": "Efter en optagelse læser Inward et kort resumé op og spørger, om du vil beholde det. Alt bliver på denne telefon.",
     ]
 }

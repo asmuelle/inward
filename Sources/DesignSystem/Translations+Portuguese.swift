@@ -94,5 +94,11 @@ extension Translations {
         "paywallReassurance": "Sem conta. Sem servidores. As tuas palavras nunca saem deste telefone.",
         "membershipLink": "Subscrição",
         "stillness": "Funciona em modo avião. Nada sai deste telefone.",
+        "summarizingLabel": "A reler para ti…",
+        "confirmKeep": "Guardar",
+        "confirmAddMore": "Dizer mais",
+        "clarifyDefaultQuestion": "O que mais gostarias de dizer sobre isto?",
+        "settingsSpokenSummaryToggle": "Ler as notas em voz alta",
+        "settingsSpokenSummaryFooter": "Depois de uma gravação, o Inward diz um breve resumo e pergunta se queres guardá-lo. Tudo fica neste telefone.",
     ]
 }

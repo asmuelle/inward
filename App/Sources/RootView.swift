@@ -6,6 +6,7 @@ import PaywallKit
 import PrivacyKit
 import QuickCaptureKit
 import ReflectKit
+import SafetyKit
 import SwiftUI
 
 /// Home: the timeline of kept entries under warm paper, with the record button
@@ -14,6 +15,10 @@ struct RootView: View {
     private let store: any JournalStoring
     private let engine: (any TranscriptionEngine)?
     private let reviewProvider: any WeeklyReviewProviding
+    /// Spoken-recap dependencies — present only when the platform supports them.
+    /// They engage solely when the opt-in setting is on (see `makeCoordinator`).
+    private let summaryProvider: any CaptureSummaryProviding
+    private let synthesizer: (any SpeechSynthesisEngine)?
 
     @State private var model: TimelineModel
     @State private var lock: LockGateModel
@@ -48,6 +53,8 @@ struct RootView: View {
         engine: (any TranscriptionEngine)?,
         reviewProvider: any WeeklyReviewProviding,
         entityExtractor: any EntityExtracting,
+        summaryProvider: any CaptureSummaryProviding,
+        synthesizer: (any SpeechSynthesisEngine)?,
         authenticator: any BiometricAuthenticating,
         purchaseGateway: any PurchaseGateway,
         trialStartedAt: Date
@@ -55,6 +62,8 @@ struct RootView: View {
         self.store = store
         self.engine = engine
         self.reviewProvider = reviewProvider
+        self.summaryProvider = summaryProvider
+        self.synthesizer = synthesizer
         _model = State(initialValue: TimelineModel(store: store))
         _lock = State(initialValue: LockGateModel(
             authenticator: authenticator,
@@ -391,7 +400,23 @@ struct RootView: View {
     }
 
     private func makeCoordinator() -> CaptureCoordinator {
-        CaptureCoordinator(engine: engine, store: store)
+        // The spoken-recap loop engages only when the user opted in and the
+        // platform supplied a synthesizer. Otherwise capture stays on the silent
+        // read-it-back path — both deps nil. The crisis gate is localized so
+        // suppression matches the user's language.
+        let spokenSummaryOn = UserDefaults.standard.bool(forKey: Prefs.spokenSummaryEnabled)
+        guard spokenSummaryOn, let synthesizer else {
+            return CaptureCoordinator(engine: engine, store: store)
+        }
+        return CaptureCoordinator(
+            engine: engine,
+            store: store,
+            summaryPipeline: CaptureSummaryPipeline(
+                gate: CrisisGate(localizedFor: .current),
+                provider: summaryProvider
+            ),
+            synthesizer: synthesizer
+        )
     }
 
     /// Highlights the open entry in the split layout; never true on iPhone, where

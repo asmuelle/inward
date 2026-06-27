@@ -94,5 +94,11 @@ extension Translations {
         "paywallReassurance": "Без аккаунта. Без серверов. Твои слова никогда не покидают этот телефон.",
         "membershipLink": "Подписка",
         "stillness": "Работает в авиарежиме. Ничего не покидает этот телефон.",
+        "summarizingLabel": "Зачитываю…",
+        "confirmKeep": "Оставить",
+        "confirmAddMore": "Сказать ещё",
+        "clarifyDefaultQuestion": "Что ещё ты хочешь сказать об этом?",
+        "settingsSpokenSummaryToggle": "Зачитывать мои записи",
+        "settingsSpokenSummaryFooter": "После записи Inward произносит краткое резюме и спрашивает, оставить ли его. Всё остаётся на этом телефоне.",
     ]
 }

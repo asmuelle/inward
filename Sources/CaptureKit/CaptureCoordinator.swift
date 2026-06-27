@@ -14,15 +14,24 @@ public enum CaptureFailure: Sendable, Equatable {
 public enum CaptureState: Sendable, Equatable {
     case idle
     case recording(liveTranscript: String)
+    /// Generating and speaking the spoken recap — transient, shows a spinner.
+    case summarizing(draft: String)
+    /// Recap spoken; awaiting Keep / Add more / Discard.
+    case confirming(draft: String, summary: String)
+    /// Speaking the clarification question before the mic re-arms — transient.
+    case clarifying(draft: String, question: String)
     case reviewing(draft: String)
     case saving
     case saved(entryID: UUID)
     case failed(CaptureFailure)
 }
 
-/// Drives the M1 loop: record → live transcript → review/edit → encrypted save.
-/// Voice is optional end to end — `saveWrittenEntry` is the same loop minus the
-/// engine, so journaling fully works when ASR is unavailable (invariant #9).
+/// Drives the capture loop: record → live transcript → (optional spoken recap →
+/// keep/expand confirm) → encrypted save. Voice is optional end to end —
+/// `saveWrittenEntry` is the same loop minus the engine, so journaling fully
+/// works when ASR is unavailable (invariant #9). The spoken-recap loop is itself
+/// optional: it runs only when both a synthesizer and a summary pipeline are
+/// injected, otherwise capture falls straight through to the read-it-back editor.
 @MainActor
 @Observable
 public final class CaptureCoordinator {
@@ -30,23 +39,33 @@ public final class CaptureCoordinator {
 
     private let engine: (any TranscriptionEngine)?
     private let store: any JournalStoring
+    private let summaryPipeline: CaptureSummaryPipeline?
+    private let synthesizer: (any SpeechSynthesisEngine)?
     private let now: @Sendable () -> Date
     private let localeIdentifier: String
+    private let maxClarificationRounds: Int
 
     private var accumulator = TranscriptAccumulator()
     private var streamTask: Task<Void, Never>?
     private var recordingStartedAt: Date?
     private var rawTranscript: String = ""
+    private var clarificationRounds = 0
 
     public init(
         engine: (any TranscriptionEngine)?,
         store: any JournalStoring,
+        summaryPipeline: CaptureSummaryPipeline? = nil,
+        synthesizer: (any SpeechSynthesisEngine)? = nil,
         localeIdentifier: String = Locale.current.identifier,
+        maxClarificationRounds: Int = 2,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.engine = engine
         self.store = store
+        self.summaryPipeline = summaryPipeline
+        self.synthesizer = synthesizer
         self.localeIdentifier = localeIdentifier
+        self.maxClarificationRounds = maxClarificationRounds
         self.now = now
     }
 
@@ -69,6 +88,7 @@ public final class CaptureCoordinator {
             let stream = try await engine.start()
             accumulator = TranscriptAccumulator()
             recordingStartedAt = now()
+            clarificationRounds = 0
             state = .recording(liveTranscript: "")
             streamTask = Task { [weak self] in
                 await self?.consume(stream)
@@ -104,7 +124,7 @@ public final class CaptureCoordinator {
         await streamTask?.value
         streamTask = nil
         rawTranscript = accumulator.displayText
-        state = .reviewing(draft: rawTranscript)
+        await presentRecap(draft: rawTranscript)
     }
 
     public func updateDraft(_ text: String) {
@@ -112,24 +132,44 @@ public final class CaptureCoordinator {
         state = .reviewing(draft: text)
     }
 
+    /// Keeps the entry from the read-it-back editor (the non-spoken path).
     public func saveVoiceEntry() async {
         guard case let .reviewing(draft) = state else { return }
-        let started = recordingStartedAt
-        let entry = Entry(
-            createdAt: now(),
-            source: .voice,
-            transcriptRaw: rawTranscript,
-            textEdited: draft,
-            durationSec: started.map { now().timeIntervalSince($0) },
-            locale: localeIdentifier
-        )
-        let transcription = Transcription(
-            entryId: entry.id,
-            engine: transcriptionEngineLabel,
-            confidence: accumulator.lastFinalConfidence ?? 0,
-            completedAt: now()
-        )
-        await persist(entry: entry, transcription: transcription)
+        await commit(draft: draft)
+    }
+
+    /// "Keep" from the spoken confirm screen.
+    public func confirmKeep() async {
+        guard case let .confirming(draft, _) = state else { return }
+        await commit(draft: draft)
+    }
+
+    /// "Add more" from the spoken confirm screen: ask one open question, speak it,
+    /// then re-arm the mic so new speech appends to the existing draft. Capped at
+    /// `maxClarificationRounds`; on the cap (or any soft failure) it drops back to
+    /// the editor so the draft is never lost.
+    public func requestClarification() async {
+        guard case let .confirming(draft, _) = state else { return }
+        guard clarificationRounds < maxClarificationRounds,
+              let synthesizer, let summaryPipeline
+        else {
+            state = .reviewing(draft: draft)
+            return
+        }
+        clarificationRounds += 1
+        state = .clarifying(draft: draft, question: "")
+        switch await summaryPipeline.clarify(draft) {
+        case .suppressed:
+            // Crisis content surfaced mid-loop — stop asking, save quietly.
+            await commit(draft: draft)
+        case let .question(question):
+            state = .clarifying(draft: draft, question: question)
+            await synthesizer.speak(question, locale: localeIdentifier)
+            guard case .clarifying = state else { return } // user bailed mid-speech
+            await resumeRecording(appendingTo: draft)
+        case .unavailable:
+            state = .reviewing(draft: draft)
+        }
     }
 
     // MARK: - Text path (always available)
@@ -153,10 +193,77 @@ public final class CaptureCoordinator {
         accumulator = TranscriptAccumulator()
         rawTranscript = ""
         recordingStartedAt = nil
+        clarificationRounds = 0
         state = .idle
     }
 
     // MARK: - Internals
+
+    /// After a recording stops, either run the spoken recap loop or fall through
+    /// to the silent editor. The model is reached only through the pipeline, which
+    /// gates on crisis content first and validates output after.
+    private func presentRecap(draft: String) async {
+        guard let synthesizer, let summaryPipeline else {
+            state = .reviewing(draft: draft)
+            return
+        }
+        state = .summarizing(draft: draft)
+        switch await summaryPipeline.summarize(draft) {
+        case .suppressed:
+            // Never recap or upsell over crisis content — save the entry quietly
+            // and let the app's safety surfaces present resources.
+            await commit(draft: draft)
+        case let .summary(summary):
+            await synthesizer.speak(summary, locale: localeIdentifier)
+            guard case .summarizing = state else { return } // user bailed mid-speech
+            state = .confirming(draft: draft, summary: summary)
+        case .unavailable:
+            state = .reviewing(draft: draft)
+        }
+    }
+
+    /// Re-arms the mic for another clarification round, seeding the accumulator
+    /// with the prior draft so new speech appends to it. Never downloads — if the
+    /// model isn't installed the draft is kept in the editor instead.
+    private func resumeRecording(appendingTo draft: String) async {
+        guard let engine else {
+            state = .reviewing(draft: draft)
+            return
+        }
+        guard await engine.assetReadiness().isInstalled else {
+            state = .reviewing(draft: draft)
+            return
+        }
+        do {
+            let stream = try await engine.start()
+            accumulator = TranscriptAccumulator(committed: draft)
+            state = .recording(liveTranscript: draft)
+            streamTask = Task { [weak self] in
+                await self?.consume(stream)
+            }
+        } catch {
+            state = .reviewing(draft: draft)
+        }
+    }
+
+    private func commit(draft: String) async {
+        let started = recordingStartedAt
+        let entry = Entry(
+            createdAt: now(),
+            source: .voice,
+            transcriptRaw: rawTranscript,
+            textEdited: draft,
+            durationSec: started.map { now().timeIntervalSince($0) },
+            locale: localeIdentifier
+        )
+        let transcription = Transcription(
+            entryId: entry.id,
+            engine: transcriptionEngineLabel,
+            confidence: accumulator.lastFinalConfidence ?? 0,
+            completedAt: now()
+        )
+        await persist(entry: entry, transcription: transcription)
+    }
 
     private func consume(_ stream: AsyncThrowingStream<TranscriptSegment, Error>) async {
         do {

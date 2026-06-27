@@ -95,5 +95,11 @@ extension Translations {
         "paywallReassurance": "Kein Konto. Keine Server. Deine Worte verlassen dieses Telefon nie.",
         "membershipLink": "Mitgliedschaft",
         "stillness": "Funktioniert im Flugmodus. Nichts verlässt dieses Telefon.",
+        "summarizingLabel": "Lese es dir vor…",
+        "confirmKeep": "Behalten",
+        "confirmAddMore": "Mehr sagen",
+        "clarifyDefaultQuestion": "Was möchtest du noch dazu sagen?",
+        "settingsSpokenSummaryToggle": "Notizen vorlesen",
+        "settingsSpokenSummaryFooter": "Nach einer Aufnahme spricht Inward eine kurze Zusammenfassung und fragt, ob du sie behalten möchtest. Alles bleibt auf diesem Telefon.",
     ]
 }

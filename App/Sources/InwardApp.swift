@@ -87,10 +87,18 @@ struct InwardApp: App {
     /// gate and output validation live in `CaptureSummaryPipeline`, wired in
     /// `RootView` only when the setting is on.
     private static func makeSummaryProvider() -> any CaptureSummaryProviding {
+        // Always-available deterministic floor (the person's own first sentence +
+        // a fixed question). On iOS/macOS 26 we prefer the model but fall back to
+        // this floor at runtime — crucially, an iOS 26 device WITHOUT Apple
+        // Intelligence (e.g. iPhone 12 mini) must still speak, not go silent.
+        let deterministic = DeterministicCaptureSummaryProvider(clarificationQuestion: Copy.clarifyDefaultQuestion)
         if #available(iOS 26.0, macOS 26.0, *) {
-            return FoundationModelsCaptureSummaryProvider()
+            return PreferredCaptureSummaryProvider(
+                primary: FoundationModelsCaptureSummaryProvider(),
+                fallback: deterministic
+            )
         }
-        return DeterministicCaptureSummaryProvider(clarificationQuestion: Copy.clarifyDefaultQuestion)
+        return deterministic
     }
 
     /// On-device text-to-speech for the spoken recap; nil below iOS/macOS 26, in

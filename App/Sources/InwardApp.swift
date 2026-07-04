@@ -5,8 +5,10 @@ import JournalStore
 import JournalStoreSQLCipher
 import PaywallKit
 import PrivacyKit
+import RecallKit
 import ReflectKit
 import SwiftUI
+import UserNotifications
 
 /// Composition root only — no business logic lives in the app shell.
 @main
@@ -15,6 +17,9 @@ struct InwardApp: App {
 
     init() {
         store = Self.makeStore()
+        // Routes weekly-reminder taps to the review surface. Installing the
+        // delegate never prompts — authorization is requested only from Settings.
+        UNUserNotificationCenter.current().delegate = WeeklyReviewReminderDelegate.shared
     }
 
     var body: some Scene {
@@ -24,6 +29,7 @@ struct InwardApp: App {
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
+                embedder: SentenceTextEmbedder(),
                 summaryProvider: Self.makeSummaryProvider(),
                 synthesizer: Self.makeSynthesizer(),
                 authenticator: LocalAuthenticationAuthenticator(),

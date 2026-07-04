@@ -43,6 +43,7 @@ public final class CaptureCoordinator {
     private let synthesizer: (any SpeechSynthesisEngine)?
     private let now: @Sendable () -> Date
     private let localeIdentifier: String
+    private let timeZoneIdentifier: String
     private let maxClarificationRounds: Int
 
     private var accumulator = TranscriptAccumulator()
@@ -57,6 +58,7 @@ public final class CaptureCoordinator {
         summaryPipeline: CaptureSummaryPipeline? = nil,
         synthesizer: (any SpeechSynthesisEngine)? = nil,
         localeIdentifier: String = Locale.current.identifier,
+        timeZoneIdentifier: String = TimeZone.current.identifier,
         maxClarificationRounds: Int = 2,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -65,6 +67,7 @@ public final class CaptureCoordinator {
         self.summaryPipeline = summaryPipeline
         self.synthesizer = synthesizer
         self.localeIdentifier = localeIdentifier
+        self.timeZoneIdentifier = timeZoneIdentifier
         self.maxClarificationRounds = maxClarificationRounds
         self.now = now
     }
@@ -83,6 +86,15 @@ public final class CaptureCoordinator {
         guard await engine.assetReadiness().isInstalled else {
             state = .failed(.voiceNeedsPreparation)
             return
+        }
+        // The journal teaches the microphone its names: bias recognition with the
+        // user's own people, places, and tags. Best-effort — an empty or failed
+        // read never delays or blocks the recording.
+        let associations = await (try? store.entityAssociations()) ?? []
+        let tags = await (try? store.allTags()) ?? []
+        let lexicon = PersonalLexicon.terms(from: associations, tags: tags)
+        if !lexicon.isEmpty {
+            await engine.setContextualVocabulary(lexicon)
         }
         do {
             let stream = try await engine.start()
@@ -182,7 +194,8 @@ public final class CaptureCoordinator {
             source: .text,
             transcriptRaw: trimmed,
             textEdited: trimmed,
-            locale: localeIdentifier
+            locale: localeIdentifier,
+            timeZone: timeZoneIdentifier
         )
         await persist(entry: entry, transcription: nil)
     }
@@ -254,7 +267,8 @@ public final class CaptureCoordinator {
             transcriptRaw: rawTranscript,
             textEdited: draft,
             durationSec: started.map { now().timeIntervalSince($0) },
-            locale: localeIdentifier
+            locale: localeIdentifier,
+            timeZone: timeZoneIdentifier
         )
         let transcription = Transcription(
             entryId: entry.id,

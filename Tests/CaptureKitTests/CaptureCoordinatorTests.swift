@@ -50,6 +50,54 @@ struct CaptureCoordinatorTests {
         #expect(transcription.confidence == 0.93)
     }
 
+    @Test("recording biases the engine with the journal's own vocabulary")
+    func vocabularyReachesEngine() async throws {
+        // Arrange — the file store keeps no entities, so the tags path carries
+        // the vocabulary here; ranking itself is covered by PersonalLexiconTests.
+        let store = temporaryStore()
+        let seed = Entry(
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            source: .text,
+            transcriptRaw: "seed",
+            textEdited: "seed",
+            locale: "en_US"
+        )
+        try await store.save(entry: seed, transcription: nil)
+        try await store.setTags(["Saoirse", "garden"], for: seed.id)
+        let engine = MockTranscriptionEngine(volatileSegments: [], finalTranscript: "words")
+        let coordinator = CaptureCoordinator(engine: engine, store: store, localeIdentifier: "en_US")
+
+        // Act
+        await coordinator.startRecording()
+
+        // Assert — the store normalizes tag names to lowercase on save
+        let received = try #require(await engine.receivedVocabulary)
+        #expect(Set(received) == Set(["saoirse", "garden"]))
+    }
+
+    @Test("saved entries carry the timezone they were captured in")
+    func timezoneStampedOnSave() async throws {
+        // Arrange
+        let store = temporaryStore()
+        let coordinator = CaptureCoordinator(
+            engine: nil,
+            store: store,
+            localeIdentifier: "en_US",
+            timeZoneIdentifier: "Europe/Berlin"
+        )
+
+        // Act
+        await coordinator.saveWrittenEntry("Stamped with the zone it was written in.")
+
+        // Assert
+        guard case let .saved(entryID) = coordinator.state else {
+            Issue.record("expected saved state, got \(coordinator.state)")
+            return
+        }
+        let entry = try #require(await store.entry(id: entryID))
+        #expect(entry.timeZone == "Europe/Berlin")
+    }
+
     @Test("editing the draft before saving keeps raw transcript as provenance")
     func editedDraftPreservesRawTranscript() async throws {
         // Arrange

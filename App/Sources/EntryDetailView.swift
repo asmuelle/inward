@@ -8,8 +8,14 @@ import SwiftUI
 struct EntryDetailView: View {
     @State private var entry: Entry
     private let store: (any JournalStoring)?
+    /// Derived tag suggestions are part of the paid understanding layer; hand
+    /// tags always work regardless.
+    private let suggestionsEnabled: Bool
     private let onEdited: (Entry) -> Void
     private let onRequestDelete: (Entry) -> Void
+    /// Supplies "entries that feel like this one" (RecallModel in the app);
+    /// nil hides the section, e.g. in the mind map's entry sheet.
+    private let relatedProvider: ((Entry) async -> [Entry])?
 
     @State private var isEditing = false
     @State private var draft = ""
@@ -17,17 +23,22 @@ struct EntryDetailView: View {
     @State private var tags: [Tag] = []
     @State private var newTag = ""
     @State private var suggestions: [String] = []
+    @State private var related: [Entry] = []
 
     init(
         entry: Entry,
         store: (any JournalStoring)? = nil,
+        suggestionsEnabled: Bool = true,
         onEdited: @escaping (Entry) -> Void = { _ in },
-        onRequestDelete: @escaping (Entry) -> Void = { _ in }
+        onRequestDelete: @escaping (Entry) -> Void = { _ in },
+        relatedProvider: ((Entry) async -> [Entry])? = nil
     ) {
         _entry = State(initialValue: entry)
         self.store = store
+        self.suggestionsEnabled = suggestionsEnabled
         self.onEdited = onEdited
         self.onRequestDelete = onRequestDelete
+        self.relatedProvider = relatedProvider
     }
 
     var body: some View {
@@ -46,6 +57,9 @@ struct EntryDetailView: View {
                 }
                 if store != nil, !isEditing {
                     tagsSection
+                }
+                if !related.isEmpty, !isEditing {
+                    relatedSection
                 }
             }
             .padding(Lamplight.Spacing.block)
@@ -171,10 +185,37 @@ struct EntryDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Kinship to past entries, each line a real entry the reader can open —
+    /// the same "your own words" trust register as weekly-review citations.
+    private var relatedSection: some View {
+        VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+            Text(Copy.relatedEntriesLabel)
+                .font(.lamplight(.caption))
+                .foregroundStyle(Color.inwardSage)
+                .padding(.top, Lamplight.Spacing.tight)
+            ForEach(related) { relatedEntry in
+                NavigationLink(value: relatedEntry) {
+                    HStack(spacing: Lamplight.Spacing.tight) {
+                        Image(systemName: "arrow.up.right")
+                        Text(relatedEntry.summary)
+                            .lineLimit(1)
+                        Spacer(minLength: Lamplight.Spacing.tight)
+                        Text(relatedEntry.createdAt, format: .dateTime.day().month())
+                    }
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardClay)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func load() async {
         guard let store else { return }
         tags = await (try? store.tags(for: entry.id)) ?? []
-        suggestions = await (try? store.suggestedTags(for: entry.id)) ?? []
+        suggestions = suggestionsEnabled ? await (try? store.suggestedTags(for: entry.id)) ?? [] : []
+        related = await relatedProvider?(entry) ?? []
     }
 
     private func addTag() {

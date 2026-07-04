@@ -76,6 +76,9 @@ public final class SQLCipherJournalStore: JournalStoring {
             record.summary = EntrySummary.make(from: textEdited)
             record.updatedAt = Date()
             try record.update(db)
+            // The embedding described the old text; drop it so the entry
+            // re-enters the embedding work queue.
+            try EmbeddingRecord.deleteOne(db, key: entryID.uuidString)
             guard let entry = record.toEntry() else {
                 throw JournalStoreError.corruptDatabase
             }
@@ -230,6 +233,34 @@ public final class SQLCipherJournalStore: JournalStoring {
                 guard !entryIDs.isEmpty else { return nil }
                 return EntityAssociation(entity: entity, entryIDs: entryIDs)
             }
+        }
+    }
+
+    // MARK: - Semantic recall embeddings
+
+    public func setEmbedding(_ vector: [Float], for entryID: UUID) async throws {
+        try await write { db in
+            guard try EntryRecord.exists(db, key: entryID.uuidString) else {
+                throw JournalStoreError.entryNotFound(entryID)
+            }
+            try EmbeddingRecord(entryId: entryID, vector: vector).save(db)
+        }
+    }
+
+    public func allEmbeddings() async throws -> [EntryEmbedding] {
+        try await read { db in
+            try EmbeddingRecord.fetchAll(db).compactMap { $0.toEmbedding() }
+        }
+    }
+
+    public func entryIDsNeedingEmbedding(limit: Int) async throws -> [UUID] {
+        try await read { db in
+            try String.fetchAll(db, sql: """
+                SELECT id FROM \(EntryRecord.databaseTableName)
+                WHERE id NOT IN (SELECT entryId FROM \(EmbeddingRecord.databaseTableName))
+                ORDER BY createdAt DESC
+                LIMIT ?
+            """, arguments: [limit]).compactMap(UUID.init(uuidString:))
         }
     }
 

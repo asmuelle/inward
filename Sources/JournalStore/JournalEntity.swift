@@ -31,6 +31,19 @@ public struct JournalEntity: Sendable, Hashable, Identifiable, Codable {
     }
 }
 
+/// A per-entry sentence embedding for semantic recall. Derived data: it lives
+/// only in the encrypted store, is never exported, and can always be re-derived
+/// on device from the entry text.
+public struct EntryEmbedding: Sendable, Equatable {
+    public let entryId: UUID
+    public let vector: [Float]
+
+    public init(entryId: UUID, vector: [Float]) {
+        self.entryId = entryId
+        self.vector = vector
+    }
+}
+
 /// An entity together with the entries that mention it — the raw material the
 /// mind-map graph is built from. `entryIDs.count` is the entity's weight; shared
 /// ids between two associations give the co-occurrence edge between them.

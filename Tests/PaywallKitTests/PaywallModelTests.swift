@@ -26,31 +26,31 @@ struct PaywallModelTests {
         await model.refresh()
 
         #expect(model.entitlement == .trial(daysRemaining: 5))
-        #expect(model.isLocked == false)
+        #expect(model.isInsightLocked == false)
         #expect(model.products.map(\.kind) == [.annual, .monthly, .lifetime])
     }
 
-    @Test("after the trial lapses with no purchase, capture is locked")
+    @Test("after the trial lapses with no purchase, the insight layer locks")
     func lapsedTrialLocks() async {
         let model = model(gateway: MockPurchaseGateway(), now: daysLater(10))
 
         await model.refresh()
 
         #expect(model.entitlement == .expired)
-        #expect(model.isLocked)
+        #expect(model.isInsightLocked)
     }
 
     @Test("buying the annual subscription unlocks the app")
     func purchaseAnnualUnlocks() async {
         let model = model(gateway: MockPurchaseGateway(), now: daysLater(10))
         await model.refresh()
-        #expect(model.isLocked)
+        #expect(model.isInsightLocked)
 
         let result = await model.purchase(InwardProduct.annual.rawValue)
 
         #expect(result == .success)
         #expect(model.entitlement == .active)
-        #expect(model.isLocked == false)
+        #expect(model.isInsightLocked == false)
     }
 
     @Test("buying lifetime grants lifetime entitlement")
@@ -71,7 +71,7 @@ struct PaywallModelTests {
 
         #expect(result == .userCancelled)
         #expect(model.entitlement == .expired)
-        #expect(model.isLocked)
+        #expect(model.isInsightLocked)
     }
 
     @Test("restore recovers a previously-owned lifetime purchase")
@@ -79,12 +79,12 @@ struct PaywallModelTests {
         let gateway = MockPurchaseGateway(restorable: [InwardProduct.lifetime.rawValue])
         let model = model(gateway: gateway, now: daysLater(10))
         await model.refresh()
-        #expect(model.isLocked)
+        #expect(model.isInsightLocked)
 
         await model.restore()
 
         #expect(model.entitlement == .lifetime)
-        #expect(model.isLocked == false)
+        #expect(model.isInsightLocked == false)
     }
 }
 

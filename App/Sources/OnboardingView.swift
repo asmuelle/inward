@@ -7,6 +7,8 @@ import SwiftUI
 struct OnboardingView: View {
     let onDone: () -> Void
 
+    @State private var connectivity = ConnectivityMonitor()
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Lamplight.Spacing.section) {
@@ -28,6 +30,17 @@ struct OnboardingView: View {
                         proofStep(number: 1, Copy.onboardingStep1)
                         proofStep(number: 2, Copy.onboardingStep2)
                         proofStep(number: 3, Copy.onboardingStep3)
+                        // The proof, live: the line flips the moment airplane
+                        // mode goes on — watched passively, no traffic created.
+                        HStack(spacing: Lamplight.Spacing.tight) {
+                            Image(systemName: connectivity.isOffline ? "airplane" : "wifi")
+                                .foregroundStyle(connectivity.isOffline ? Color.inwardClay : Color.inwardSage)
+                            Text(connectivity.isOffline ? Copy.proofOfflineConfirm : Copy.proofOnlineHint)
+                                .font(.lamplight(.caption))
+                                .foregroundStyle(Color.inwardSage)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .animation(.easeOut(duration: Lamplight.Motion.standard), value: connectivity.isOffline)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -46,6 +59,8 @@ struct OnboardingView: View {
             .padding(.top, Lamplight.Spacing.stage)
         }
         .background(Color.inwardPaper.ignoresSafeArea())
+        .task { connectivity.start() }
+        .onDisappear { connectivity.stop() }
     }
 
     private func proofStep(number: Int, _ text: String) -> some View {

@@ -19,6 +19,9 @@
         private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
         private var resultTask: Task<Void, Never>?
         private var outputContinuation: AsyncThrowingStream<TranscriptSegment, Error>.Continuation?
+        /// The user's own proper nouns, applied as contextual strings on the next
+        /// start. In actor memory only — never persisted, never leaves the device.
+        private var contextualVocabulary: [String] = []
 
         public init() {}
 
@@ -106,6 +109,14 @@
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             self.analyzer = analyzer
 
+            // Bias recognition toward the user's own names and places. Soft
+            // failure only — a rejected context must never block capture.
+            if !contextualVocabulary.isEmpty {
+                let context = AnalysisContext()
+                context.contextualStrings[.general] = contextualVocabulary
+                try? await analyzer.setContext(context)
+            }
+
             // SpeechAnalyzer requires audio in its own format; handing it raw mic
             // buffers traps inside the framework (preRunRecognition). Resolve the
             // format it wants and convert every buffer to it before delivery.
@@ -141,6 +152,10 @@
             outputContinuation = nil
             analyzer = nil
             transcriber = nil
+        }
+
+        public func setContextualVocabulary(_ terms: [String]) async {
+            contextualVocabulary = terms
         }
 
         // MARK: - Internals

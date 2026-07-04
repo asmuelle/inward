@@ -33,7 +33,7 @@ struct PaywallView: View {
                 }
             }
             .task { await model.refresh() }
-            .onChange(of: model.isLocked) { _, locked in
+            .onChange(of: model.isInsightLocked) { _, locked in
                 if !locked { dismiss() }
             }
         }

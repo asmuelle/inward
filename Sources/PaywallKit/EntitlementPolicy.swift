@@ -48,8 +48,17 @@ public enum EntitlementPolicy {
         )
     }
 
-    /// New captures lock when the trial lapses.
-    public static func isCaptureAllowed(_ state: EntitlementState) -> Bool {
+    /// Capture is free forever — the inverted paywall. A journal that locks
+    /// people out of their own writing habit kills retention exactly when it
+    /// forms; the zero-marginal-cost insight layer is what Pro sells instead.
+    public static func isCaptureAllowed(_: EntitlementState) -> Bool {
+        true
+    }
+
+    /// The understanding layer — weekly review synthesis, mind map, tag
+    /// suggestions, spoken recap — is what a lapsed trial locks. Free users
+    /// keep the deterministic themes-only review as a taste of it.
+    public static func isInsightAllowed(_ state: EntitlementState) -> Bool {
         switch state {
         case .trial, .active, .lifetime: true
         case .expired: false

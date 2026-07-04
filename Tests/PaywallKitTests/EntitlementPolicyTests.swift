@@ -37,12 +37,20 @@ struct EntitlementPolicyTests {
         )
     }
 
-    @Test("capture locks when expired, stays open otherwise")
-    func captureGating() {
-        #expect(EntitlementPolicy.isCaptureAllowed(.trial(daysRemaining: 2)))
-        #expect(EntitlementPolicy.isCaptureAllowed(.active))
-        #expect(EntitlementPolicy.isCaptureAllowed(.lifetime))
-        #expect(!EntitlementPolicy.isCaptureAllowed(.expired))
+    @Test("the inverted paywall: capture stays free in every state, including expired")
+    func captureNeverPaywalled() {
+        let states: [EntitlementState] = [.trial(daysRemaining: 2), .active, .lifetime, .expired]
+        for state in states {
+            #expect(EntitlementPolicy.isCaptureAllowed(state), "capture must stay free in \(state)")
+        }
+    }
+
+    @Test("the insight layer locks when expired, stays open otherwise")
+    func insightGating() {
+        #expect(EntitlementPolicy.isInsightAllowed(.trial(daysRemaining: 2)))
+        #expect(EntitlementPolicy.isInsightAllowed(.active))
+        #expect(EntitlementPolicy.isInsightAllowed(.lifetime))
+        #expect(!EntitlementPolicy.isInsightAllowed(.expired))
     }
 
     @Test("invariant #8: reading and export are allowed in every state, including expired")

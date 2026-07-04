@@ -39,6 +39,10 @@ public struct Entry: Sendable, Hashable, Identifiable {
     /// advanced on each edit. Drives the "edited" marker and future last-writer-wins sync.
     public let updatedAt: Date
     public let locale: String
+    /// IANA timezone identifier at capture (e.g. "Europe/Berlin"). `createdAt` is
+    /// UTC, so without this a late-night entry written while traveling misreports
+    /// its local hour. Nil for entries saved before the stamp existed.
+    public let timeZone: String?
 
     public init(
         id: UUID = UUID(),
@@ -51,7 +55,8 @@ public struct Entry: Sendable, Hashable, Identifiable {
         durationSec: Double? = nil,
         mood: String? = nil,
         updatedAt: Date? = nil,
-        locale: String
+        locale: String,
+        timeZone: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -64,6 +69,7 @@ public struct Entry: Sendable, Hashable, Identifiable {
         self.mood = mood
         self.updatedAt = updatedAt ?? createdAt
         self.locale = locale
+        self.timeZone = timeZone
     }
 
     /// Returns a copy with the edited text replaced and `updatedAt` advanced; the
@@ -80,14 +86,16 @@ public struct Entry: Sendable, Hashable, Identifiable {
             durationSec: durationSec,
             mood: mood,
             updatedAt: updatedAt,
-            locale: locale
+            locale: locale,
+            timeZone: timeZone
         )
     }
 }
 
 extension Entry: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, createdAt, source, audioFileRef, transcriptRaw, textEdited, summary, durationSec, mood, updatedAt, locale
+        case id, createdAt, source, audioFileRef, transcriptRaw, textEdited, summary, durationSec, mood, updatedAt, locale,
+             timeZone
     }
 
     public init(from decoder: Decoder) throws {
@@ -106,7 +114,9 @@ extension Entry: Codable {
             mood: container.decodeIfPresent(String.self, forKey: .mood),
             // Pre-updatedAt archives fall back to createdAt (via the initializer).
             updatedAt: container.decodeIfPresent(Date.self, forKey: .updatedAt),
-            locale: container.decode(String.self, forKey: .locale)
+            locale: container.decode(String.self, forKey: .locale),
+            // Pre-timezone archives stay nil — the capture-time zone is unknowable.
+            timeZone: container.decodeIfPresent(String.self, forKey: .timeZone)
         )
     }
 }

@@ -172,6 +172,27 @@ public actor EncryptedFileJournalStore: JournalStoring {
         [] // The fallback store keeps no entities.
     }
 
+    // MARK: - Semantic recall embeddings
+
+    //
+    // Like entities, embeddings are derived data the file fallback doesn't keep;
+    // recall degrades to the deterministic word-overlap index on this store.
+
+    public func setEmbedding(_: [Float], for entryID: UUID) async throws {
+        guard try loadDatabase().entries.contains(where: { $0.id == entryID }) else {
+            throw JournalStoreError.entryNotFound(entryID)
+        }
+        // No-op: derived data isn't kept in the file fallback.
+    }
+
+    public func allEmbeddings() async throws -> [EntryEmbedding] {
+        []
+    }
+
+    public func entryIDsNeedingEmbedding(limit _: Int) async throws -> [UUID] {
+        []
+    }
+
     // MARK: - Sealed file handling
 
     private func loadDatabase() throws -> JournalDatabase {

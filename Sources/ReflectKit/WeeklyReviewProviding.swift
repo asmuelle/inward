@@ -9,11 +9,16 @@ public struct ReviewableEntry: Sendable, Equatable, Codable, Identifiable {
     /// A short, precomputed summary of the entry (kept under the 8K window at save
     /// time). The review reasons over summaries, never the full transcript corpus.
     public let summary: String
+    /// IANA timezone the entry was captured in, when known. `createdAt` is UTC, so
+    /// this is what makes "written late at night" true for entries written while
+    /// traveling. Nil falls back to the reader's current zone.
+    public let timeZone: String?
 
-    public init(id: UUID, createdAt: Date, summary: String) {
+    public init(id: UUID, createdAt: Date, summary: String, timeZone: String? = nil) {
         self.id = id
         self.createdAt = createdAt
         self.summary = summary
+        self.timeZone = timeZone
     }
 }
 
@@ -29,7 +34,9 @@ public struct WeekContext: Sendable, Equatable {
     }
 
     /// The set of ids a valid observation is allowed to reference.
-    var citableIDs: Set<UUID> { Set(entries.map(\.id)) }
+    var citableIDs: Set<UUID> {
+        Set(entries.map(\.id))
+    }
 }
 
 /// One gentle observation about a recurring theme, each pinned to at least one

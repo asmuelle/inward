@@ -76,6 +76,11 @@ public protocol TranscriptionEngine: Sendable {
     func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error>
 
     func stop() async
+
+    /// Hands the engine the user's own vocabulary (names, places, tags) to bias
+    /// recognition on the next `start()`. Held in memory only, persisted nowhere
+    /// new — the personalization corpus is already in the encrypted store.
+    func setContextualVocabulary(_ terms: [String]) async
 }
 
 public extension TranscriptionEngine {
@@ -87,6 +92,9 @@ public extension TranscriptionEngine {
 
     /// No-op for engines that carry no downloadable model.
     func prepareAssets() async throws {}
+
+    /// No-op for engines without contextual-string support.
+    func setContextualVocabulary(_ terms: [String]) async {}
 }
 
 public enum TranscriptionEngineKind: String, Sendable {

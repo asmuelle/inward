@@ -75,4 +75,18 @@ public protocol JournalStoring: Sendable {
     /// Every entity with the entries that mention it — the raw material for the
     /// mind-map graph. Empty on stores that don't persist entities.
     func entityAssociations() async throws -> [EntityAssociation]
+
+    // MARK: - Semantic recall embeddings
+
+    /// Stores (or replaces) the entry's sentence embedding. Derived data, like
+    /// entities: re-derivable on device, never exported.
+    func setEmbedding(_ vector: [Float], for entryID: UUID) async throws
+
+    /// Every stored embedding — the in-memory corpus semantic recall ranks over.
+    /// Empty on stores that don't persist embeddings.
+    func allEmbeddings() async throws -> [EntryEmbedding]
+
+    /// IDs of entries without an embedding yet, newest first — the work queue
+    /// for the background embedding indexer (new entries and backfill alike).
+    func entryIDsNeedingEmbedding(limit: Int) async throws -> [UUID]
 }

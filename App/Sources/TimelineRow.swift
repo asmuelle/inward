@@ -1,5 +1,6 @@
 import DesignSystem
 import JournalStore
+import ReflectKit
 import SwiftUI
 
 /// One kept entry on the timeline: serif first line on a paper card, with the
@@ -19,6 +20,11 @@ struct TimelineRow: View {
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: Lamplight.Spacing.tight) {
+                    // Decorative time-of-day mark in the entry's own captured zone.
+                    Image(systemName: DayPartGlyph.symbolName(
+                        for: DayPart.of(entry.createdAt, timeZoneIdentifier: entry.timeZone)
+                    ))
+                    .accessibilityHidden(true)
                     Text(entry.createdAt, format: .dateTime.weekday(.wide).day().month())
                     Text("·")
                     Text(entry.source == .voice ? Copy.spokenLabel : Copy.writtenLabel)

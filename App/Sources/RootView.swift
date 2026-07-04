@@ -5,6 +5,7 @@ import JournalStore
 import PaywallKit
 import PrivacyKit
 import QuickCaptureKit
+import RecallKit
 import ReflectKit
 import SafetyKit
 import SwiftUI
@@ -24,6 +25,15 @@ struct RootView: View {
     @State private var lock: LockGateModel
     @State private var paywall: PaywallModel
     @State private var insightIndexer: InsightIndexer
+    @State private var embeddingIndexer: EmbeddingIndexer
+    @State private var recall: RecallModel
+    /// Timeline search: literal matches first, then semantic neighbors.
+    /// `nil` results mean "not searching" — the timeline shows everything.
+    @State private var searchText = ""
+    @State private var searchResults: [Entry]?
+    /// Today's "on this day" echo, recomputed with each refresh; in-app only —
+    /// journal text never crosses into widgets or notifications.
+    @State private var echo: Entry?
     @State private var isCapturing = false
     @State private var isWriting = false
     @State private var isShowingSettings = false
@@ -37,6 +47,12 @@ struct RootView: View {
     @State private var autoStartCapture = false
     @State private var pendingQuickCapture = false
     @State private var lastQuickCaptureToken = 0
+
+    /// A weekly-reminder tap signals through this shared object; like quick
+    /// capture, a tap that arrives while locked waits for the lock to open.
+    private let reviewSignal = WeeklyReviewSignal.shared
+    @State private var pendingReviewOpen = false
+    @State private var lastReviewToken = 0
 
     /// The most recently deleted entry, held for a few seconds so the undo
     /// snackbar can re-insert it. Hard delete otherwise — no tombstone.
@@ -53,6 +69,7 @@ struct RootView: View {
         engine: (any TranscriptionEngine)?,
         reviewProvider: any WeeklyReviewProviding,
         entityExtractor: any EntityExtracting,
+        embedder: any TextEmbedding,
         summaryProvider: any CaptureSummaryProviding,
         synthesizer: (any SpeechSynthesisEngine)?,
         authenticator: any BiometricAuthenticating,
@@ -71,21 +88,25 @@ struct RootView: View {
         ))
         _paywall = State(initialValue: PaywallModel(gateway: purchaseGateway, trialStartedAt: trialStartedAt))
         _insightIndexer = State(initialValue: InsightIndexer(store: store, primary: entityExtractor))
+        _embeddingIndexer = State(initialValue: EmbeddingIndexer(store: store, embedder: embedder))
+        _recall = State(initialValue: RecallModel(store: store, embedder: embedder))
     }
 
-    /// New writing is gated when the trial lapses without a purchase; reading,
-    /// weekly review, and export stay free (invariant #8).
+    /// Capture is free forever (the inverted paywall): a journal must never
+    /// lock people out of their own writing habit. What Pro gates is the
+    /// insight layer — see `beginMindMap` and the synthesis/suggestion gates.
     private func beginCapture(autoStart: Bool = false) {
-        if paywall.isLocked {
-            isShowingPaywall = true
-        } else {
-            autoStartCapture = autoStart
-            isCapturing = true
-        }
+        autoStartCapture = autoStart
+        isCapturing = true
     }
 
     private func beginWriting() {
-        if paywall.isLocked { isShowingPaywall = true } else { isWriting = true }
+        isWriting = true
+    }
+
+    /// The mind map is part of the paid understanding layer.
+    private func beginMindMap() {
+        if paywall.isInsightLocked { isShowingPaywall = true } else { selection = .mindMap }
     }
 
     /// A quick-capture trigger fired. Begin recording now if unlocked; otherwise
@@ -97,6 +118,18 @@ struct RootView: View {
             pendingQuickCapture = true
         } else {
             beginCapture(autoStart: true)
+        }
+    }
+
+    /// The weekly reminder was tapped. Open the review if unlocked; otherwise
+    /// hold it until the lock opens, so a notification can never bypass the lock.
+    private func handleReviewOpen(token: Int) {
+        guard token != lastReviewToken, token > 0 else { return }
+        lastReviewToken = token
+        if lock.state == .locked {
+            pendingReviewOpen = true
+        } else {
+            selection = .weeklyReview
         }
     }
 
@@ -127,11 +160,14 @@ struct RootView: View {
         }
     }
 
-    /// Refresh the timeline after a new entry, then let the indexer pick it up.
+    /// Refresh the timeline after a new entry, then let the indexers pick it up.
     private func refreshAndIndex() {
         Task {
             await model.refresh()
+            refreshEcho()
             await insightIndexer.indexPending()
+            await embeddingIndexer.indexPending()
+            await recall.reload()
         }
     }
 
@@ -167,21 +203,39 @@ struct RootView: View {
                     }
                 }
             }
-            .task { await model.refresh() }
+            .task {
+                await model.refresh()
+                refreshEcho()
+            }
             .task { await paywall.refresh() }
             .task { await paywall.observeUpdates() }
             // Backfill + keep insights current, gently in the background.
             .task { await insightIndexer.indexPending() }
+            // Same for semantic-recall embeddings; the corpus loads after.
+            .task {
+                await embeddingIndexer.indexPending()
+                await recall.reload()
+            }
             // Quick-capture: handle a request already pending at launch, react to
             // new ones, and release a lock-deferred one once the lock opens.
             .task { handleQuickCapture(token: quickCapture.requestToken) }
             .onChange(of: quickCapture.requestToken) { _, token in
                 handleQuickCapture(token: token)
             }
+            // Weekly-reminder taps route the same way, including through the lock.
+            .task { handleReviewOpen(token: reviewSignal.requestToken) }
+            .onChange(of: reviewSignal.requestToken) { _, token in
+                handleReviewOpen(token: token)
+            }
             .onChange(of: lock.state) { _, state in
-                if state != .locked, pendingQuickCapture {
+                guard state != .locked else { return }
+                if pendingQuickCapture {
                     pendingQuickCapture = false
                     beginCapture(autoStart: true)
+                }
+                if pendingReviewOpen {
+                    pendingReviewOpen = false
+                    selection = .weeklyReview
                 }
             }
             .sheet(isPresented: $isCapturing, onDismiss: { autoStartCapture = false; refreshAndIndex() }) {
@@ -221,7 +275,12 @@ struct RootView: View {
             NavigationSplitView {
                 sidebar
             } detail: {
-                NavigationStack { detailPane }
+                NavigationStack {
+                    detailPane
+                        .navigationDestination(for: Entry.self) { entry in
+                            entryDetail(entry)
+                        }
+                }
             }
             .navigationSplitViewStyle(.balanced)
         } else {
@@ -229,6 +288,11 @@ struct RootView: View {
                 sidebar
                     .navigationDestination(item: $selection) { route in
                         routeView(route)
+                    }
+                    // Entry-valued links (weekly-review citations, related
+                    // entries) push within the same stack.
+                    .navigationDestination(for: Entry.self) { entry in
+                        entryDetail(entry)
                     }
             }
         }
@@ -254,7 +318,7 @@ struct RootView: View {
             .accessibilityLabel(Copy.settingsTitle)
         }
         ToolbarItem(placement: .inwardTrailing) {
-            Button { selection = .mindMap } label: {
+            Button { beginMindMap() } label: {
                 Image(systemName: "circle.hexagongrid")
             }
             .accessibilityLabel(Copy.mindMapLink)
@@ -287,17 +351,29 @@ struct RootView: View {
     @ViewBuilder private func routeView(_ route: DetailRoute) -> some View {
         switch route {
         case let .entry(entry):
-            EntryDetailView(
-                entry: entry,
-                store: store,
-                onEdited: { _ in Task { await model.refresh() } },
-                onRequestDelete: { deleteEntry($0) }
-            )
+            entryDetail(entry)
         case .weeklyReview:
-            WeeklyReviewView(model: WeeklyReviewModel(store: store, provider: reviewProvider))
+            // The surface stays free; the AFM synthesis inside it is Pro. Free
+            // users keep the deterministic themes-only review as the taste.
+            WeeklyReviewView(model: WeeklyReviewModel(
+                store: store,
+                provider: reviewProvider,
+                synthesisAllowed: !paywall.isInsightLocked
+            ))
         case .mindMap:
             MindMapView(store: store)
         }
+    }
+
+    private func entryDetail(_ entry: Entry) -> some View {
+        EntryDetailView(
+            entry: entry,
+            store: store,
+            suggestionsEnabled: !paywall.isInsightLocked,
+            onEdited: { _ in Task { await model.refresh() } },
+            onRequestDelete: { deleteEntry($0) },
+            relatedProvider: { await recall.related(to: $0) }
+        )
     }
 
     /// Split on iPad/macOS, push on iPhone. macOS has no size class, so it always
@@ -318,8 +394,17 @@ struct RootView: View {
         )
     }
 
+    /// What the timeline lists: search results while a query is live, everything
+    /// otherwise.
+    private var displayedEntries: [Entry] {
+        searchResults ?? model.entries
+    }
+
     private var timeline: some View {
         VStack(spacing: 0) {
+            if !model.entries.isEmpty {
+                searchField
+            }
             if !model.tags.isEmpty {
                 tagFilterBar
             }
@@ -335,10 +420,25 @@ struct RootView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if displayedEntries.isEmpty {
+                VStack(spacing: Lamplight.Spacing.block) {
+                    Spacer()
+                    Text(Copy.timelineSearchEmpty)
+                        .font(.lamplight(.entryProse))
+                        .foregroundStyle(Color.inwardSage)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Lamplight.Spacing.stage)
+                    Spacer()
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVStack(spacing: Lamplight.Spacing.block) {
-                        ForEach(model.entries) { entry in
+                        if let echo, searchResults == nil {
+                            echoCard(echo)
+                        }
+                        ForEach(displayedEntries) { entry in
                             Button {
                                 selection = .entry(entry)
                             } label: {
@@ -358,6 +458,92 @@ struct RootView: View {
                 }
             }
         }
+        .task(id: searchText) {
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else {
+                searchResults = nil
+                return
+            }
+            // Let typing settle; the task(id:) cancellation makes this a debounce.
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            searchResults = await recall.search(query, in: model.entries)
+        }
+    }
+
+    /// A quiet echo of the user's own words from this day a month or a year
+    /// ago — deterministic, in-app only, and dismissable for good: resurfacing
+    /// a hard anniversary uninvited is worse than showing nothing.
+    private func echoCard(_ entry: Entry) -> some View {
+        VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+            HStack {
+                Text(Copy.echoHeader.uppercased())
+                    .font(.lamplight(.caption))
+                    .tracking(1.1)
+                    .foregroundStyle(Color.inwardSage)
+                Spacer()
+                Button {
+                    dismissEcho(entry)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color.inwardSage)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Copy.echoDismiss)
+            }
+            Button {
+                selection = .entry(entry)
+            } label: {
+                TimelineRow(entry: entry, isSelected: isSelectedEntry(entry))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func refreshEcho() {
+        let dismissed = Set(
+            (UserDefaults.standard.stringArray(forKey: Prefs.echoDismissed) ?? [])
+                .compactMap(UUID.init(uuidString:))
+        )
+        echo = OnThisDay.echo(from: model.entries, today: Date(), excluding: dismissed)
+    }
+
+    private func dismissEcho(_ entry: Entry) {
+        var dismissed = UserDefaults.standard.stringArray(forKey: Prefs.echoDismissed) ?? []
+        dismissed.append(entry.id.uuidString)
+        UserDefaults.standard.set(dismissed, forKey: Prefs.echoDismissed)
+        refreshEcho()
+    }
+
+    /// Mirrors the mind map's search capsule so the two surfaces feel like one.
+    private var searchField: some View {
+        HStack(spacing: Lamplight.Spacing.tight) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Color.inwardSage)
+            TextField(Copy.timelineSearchPrompt, text: $searchText)
+                .font(.lamplight(.caption))
+                .foregroundStyle(Color.inwardInk)
+                .autocorrectionDisabled()
+                .textFieldStyle(.plain)
+            #if os(iOS)
+                .textInputAutocapitalization(.never)
+            #endif
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color.inwardSage)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Copy.timelineSearchClear)
+            }
+        }
+        .padding(.horizontal, Lamplight.Spacing.element)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Color.inwardSage.opacity(0.12)))
+        .padding(.horizontal, Lamplight.Spacing.block)
+        .padding(.top, Lamplight.Spacing.element)
     }
 
     /// Horizontal chips of the journal's tags; tap to filter the timeline, tap the
@@ -400,12 +586,13 @@ struct RootView: View {
     }
 
     private func makeCoordinator() -> CaptureCoordinator {
-        // The spoken-recap loop engages only when the user opted in and the
+        // The spoken-recap loop engages only when the user opted in, the
+        // entitlement covers the insight layer (the inverted paywall), and the
         // platform supplied a synthesizer. Otherwise capture stays on the silent
-        // read-it-back path — both deps nil. The crisis gate is localized so
+        // read-it-back path — never a lock. The crisis gate is localized so
         // suppression matches the user's language.
         let spokenSummaryOn = UserDefaults.standard.bool(forKey: Prefs.spokenSummaryEnabled)
-        guard spokenSummaryOn, let synthesizer else {
+        guard spokenSummaryOn, !paywall.isInsightLocked, let synthesizer else {
             return CaptureCoordinator(engine: engine, store: store)
         }
         return CaptureCoordinator(

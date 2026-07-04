@@ -14,6 +14,8 @@ final class WeeklyReviewModel {
     /// `nil` while loading; a resolved `WeeklyReviewOutcome` after.
     private(set) var outcome: WeeklyReviewOutcome?
     private(set) var entriesByID: [UUID: Entry] = [:]
+    /// Deterministic "when you wrote" fact for the week; nil under two entries.
+    private(set) var rhythm: TimeRhythm?
 
     private let store: any JournalStoring
     private let provider: any WeeklyReviewProviding
@@ -24,12 +26,16 @@ final class WeeklyReviewModel {
     init(
         store: any JournalStoring,
         provider: any WeeklyReviewProviding,
+        synthesisAllowed: Bool = true,
         referenceDate: Date = Date(),
         windowDays: Int = 7,
         calendar: Calendar = .current
     ) {
         self.store = store
-        self.provider = provider
+        // Synthesis is Pro (the inverted paywall); without it the provider
+        // reports unavailable and the review degrades to deterministic
+        // themes-only counts — the crisis gate still runs first, unchanged.
+        self.provider = synthesisAllowed ? provider : SynthesisWithheldProvider()
         self.referenceDate = referenceDate
         self.windowDays = windowDays
         self.calendar = calendar
@@ -53,6 +59,7 @@ final class WeeklyReviewModel {
         entriesByID = Dictionary(weekEntries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         let context = WeekContext(weekStart: weekStart, entries: weekEntries.map(Self.reviewable))
+        rhythm = WeeklyReviewPipeline.timeRhythm(in: context, calendar: calendar)
         let result = await WeeklyReviewPipeline(
             gate: CrisisGate(localizedFor: .current),
             provider: provider
@@ -74,7 +81,20 @@ final class WeeklyReviewModel {
 
     /// Uses the summary precomputed and stored at save time (JournalStore.EntrySummary).
     static func reviewable(_ entry: Entry) -> ReviewableEntry {
-        ReviewableEntry(id: entry.id, createdAt: entry.createdAt, summary: entry.summary)
+        ReviewableEntry(id: entry.id, createdAt: entry.createdAt, summary: entry.summary, timeZone: entry.timeZone)
+    }
+}
+
+/// Stands in for the synthesis provider when the entitlement doesn't cover it:
+/// always unavailable, so the pipeline (crisis gate included) degrades to the
+/// deterministic themes-only outcome without a second code path.
+private struct SynthesisWithheldProvider: WeeklyReviewProviding {
+    func availability() async -> ReflectionAvailability {
+        .unavailable(reason: "synthesis is part of Inward Pro")
+    }
+
+    func review(for _: WeekContext) async throws -> WeeklyReviewDraft {
+        throw ReflectionError.modelUnavailable
     }
 }
 
@@ -128,6 +148,8 @@ struct WeeklyReviewView: View {
             .font(.lamplight(.caption))
             .foregroundStyle(Color.inwardSage)
 
+        rhythmLine
+
         ForEach(Array(draft.observations.enumerated()), id: \.offset) { _, observation in
             PaperCard {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.element) {
@@ -147,6 +169,8 @@ struct WeeklyReviewView: View {
         Text(Copy.weeklyThemesHeader)
             .font(.lamplight(.journalTitle))
             .foregroundStyle(Color.inwardInk)
+
+        rhythmLine
 
         ForEach(themes, id: \.theme) { theme in
             PaperCard {
@@ -201,6 +225,28 @@ struct WeeklyReviewView: View {
     }
 
     // MARK: - Pieces
+
+    /// Deterministic rhythm fact, verifiable against the timeline — never shown
+    /// in the crisis state, which renders only static resources.
+    @ViewBuilder private var rhythmLine: some View {
+        if let rhythm = model.rhythm {
+            HStack(spacing: Lamplight.Spacing.tight) {
+                Image(systemName: DayPartGlyph.symbolName(for: rhythm.dayPart))
+                Text(Self.rhythmText(rhythm))
+            }
+            .font(.lamplight(.caption))
+            .foregroundStyle(Color.inwardSage)
+        }
+    }
+
+    static func rhythmText(_ rhythm: TimeRhythm) -> String {
+        switch rhythm.dayPart {
+        case .morning: Copy.weeklyRhythmMorning(rhythm.count, of: rhythm.total)
+        case .afternoon: Copy.weeklyRhythmAfternoon(rhythm.count, of: rhythm.total)
+        case .evening: Copy.weeklyRhythmEvening(rhythm.count, of: rhythm.total)
+        case .lateNight: Copy.weeklyRhythmLateNight(rhythm.count, of: rhythm.total)
+        }
+    }
 
     private func themeLabel(_ theme: String) -> some View {
         Text(theme.uppercased())

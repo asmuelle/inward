@@ -2,6 +2,23 @@
     import Foundation
     import NaturalLanguage
 
+    /// The user's own recurring proper nouns, used to seed a gazetteer so the
+    /// deterministic floor keeps recognizing names it has seen before. Plain
+    /// value type; the caller (the app's indexer) maps store entities down.
+    public struct PersonalNounVocabulary: Sendable, Equatable {
+        public let people: [String]
+        public let places: [String]
+
+        public var isEmpty: Bool {
+            people.isEmpty && places.isEmpty
+        }
+
+        public init(people: [String], places: [String]) {
+            self.people = people
+            self.places = places
+        }
+    }
+
     /// The deterministic, always-on-device floor (invariant #9): Apple's
     /// `NaturalLanguage` named-entity recognition for people / places /
     /// organizations, plus a coarse sentiment word. No topics or action items —
@@ -9,7 +26,12 @@
     /// it returns is a substring of the entry, so it passes verification by
     /// construction.
     public struct NaturalLanguageEntityExtractor: EntityExtracting {
-        public init() {}
+        /// Kept as plain strings (Sendable); the NLGazetteer is built per extract.
+        private let vocabulary: PersonalNounVocabulary?
+
+        public init(vocabulary: PersonalNounVocabulary? = nil) {
+            self.vocabulary = vocabulary
+        }
 
         public func availability() async -> InsightAvailability {
             .available
@@ -27,6 +49,11 @@
 
             let tagger = NLTagger(tagSchemes: [.nameType])
             tagger.string = text
+            // The journal's own names override the stock recognizer, closing the
+            // flywheel: better entities → better recognition → better entities.
+            if let gazetteer = Self.gazetteer(for: vocabulary) {
+                tagger.setGazetteers([gazetteer], for: .nameType)
+            }
             let options: NLTagger.Options = [.omitWhitespace, .omitPunctuation, .joinNames]
             tagger.enumerateTags(
                 in: text.startIndex ..< text.endIndex,
@@ -52,6 +79,14 @@
                 sentiment: Self.sentimentWord(for: text),
                 actionItems: []
             )
+        }
+
+        private static func gazetteer(for vocabulary: PersonalNounVocabulary?) -> NLGazetteer? {
+            guard let vocabulary, !vocabulary.isEmpty else { return nil }
+            var dictionary: [String: [String]] = [:]
+            if !vocabulary.people.isEmpty { dictionary[NLTag.personalName.rawValue] = vocabulary.people }
+            if !vocabulary.places.isEmpty { dictionary[NLTag.placeName.rawValue] = vocabulary.places }
+            return try? NLGazetteer(dictionary: dictionary, language: nil)
         }
 
         /// A single calm word for the entry's overall tone, from NaturalLanguage's

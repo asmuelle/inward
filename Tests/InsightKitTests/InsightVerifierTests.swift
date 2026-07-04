@@ -93,5 +93,37 @@ struct InsightVerifierTests {
                 #expect(["heavy", "steady", "light"].contains(sentiment))
             }
         }
+
+        @Test("the gazetteer teaches the floor the journal's own names")
+        func gazetteerRecognizesPersonalNames() async throws {
+            // "Vexlor" is invented — the stock recognizer has never seen it, so
+            // only the personal gazetteer can tag it as a person.
+            let personalized = NaturalLanguageEntityExtractor(
+                vocabulary: PersonalNounVocabulary(people: ["Vexlor"], places: [])
+            )
+            let entry = ExtractableEntry(
+                id: UUID(),
+                createdAt: Date(timeIntervalSince1970: 0),
+                text: "Walked with Vexlor along the river this evening."
+            )
+
+            let insights = try await personalized.extract(from: entry)
+
+            #expect(insights.people.contains("Vexlor"))
+        }
+
+        @Test("an empty vocabulary leaves the floor unchanged")
+        func emptyVocabularyIsInert() async throws {
+            let personalized = NaturalLanguageEntityExtractor(
+                vocabulary: PersonalNounVocabulary(people: [], places: [])
+            )
+            let text = "I met Sarah in Berlin and we talked for hours."
+            let entry = ExtractableEntry(id: UUID(), createdAt: Date(timeIntervalSince1970: 0), text: text)
+
+            let plain = try await extractor.extract(from: entry)
+            let seeded = try await personalized.extract(from: entry)
+
+            #expect(plain == seeded)
+        }
     }
 #endif

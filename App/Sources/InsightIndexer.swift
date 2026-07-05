@@ -36,7 +36,13 @@ final class InsightIndexer {
 
         // Gate the chosen extractor behind the deterministic crisis gate: on a
         // crisis match the model never runs and no entities are derived (#5).
-        let chosen = await primary.availability().isAvailable ? primary : fallback
+        let chosen: any EntityExtracting = if await primary.availability().isAvailable {
+            primary
+        } else if fallback is NaturalLanguageEntityExtractor {
+            await personalizedNLFallback()
+        } else {
+            fallback
+        }
         let extractor = InsightExtractionPipeline(
             gate: CrisisGate(localizedFor: .current),
             extractor: chosen
@@ -59,6 +65,19 @@ final class InsightIndexer {
             }
             try? await Task.sleep(for: .milliseconds(250))
         }
+    }
+
+    /// The deterministic floor, seeded with the journal's own recurring people
+    /// and places so names it has extracted before keep being recognized in new
+    /// entries. Best-effort: an empty or unreadable store yields the plain floor.
+    private func personalizedNLFallback() async -> any EntityExtracting {
+        let associations = await (try? store.entityAssociations()) ?? []
+        let vocabulary = PersonalNounVocabulary(
+            people: associations.filter { $0.entity.kind == .person }.map(\.entity.name),
+            places: associations.filter { $0.entity.kind == .place }.map(\.entity.name)
+        )
+        guard !vocabulary.isEmpty else { return fallback }
+        return NaturalLanguageEntityExtractor(vocabulary: vocabulary)
     }
 
     /// Flattens verified insights into kinded storage entities (people, places,

@@ -40,6 +40,29 @@ struct EncryptedFileJournalStoreTests {
         #expect(try await store.transcription(entryID: entry.id) == transcription)
     }
 
+    @Test("the capture timezone round-trips; entries without one stay nil")
+    func timeZoneRoundTrip() async throws {
+        // Arrange
+        let store = EncryptedFileJournalStore(fileURL: temporaryStoreURL(), keyProvider: StaticKeyProvider.random())
+        let stamped = Entry(
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            source: .text,
+            transcriptRaw: "stamped",
+            textEdited: "stamped",
+            locale: "en_US",
+            timeZone: "Pacific/Auckland"
+        )
+        let unstamped = makeEntry()
+
+        // Act
+        try await store.save(entry: stamped, transcription: nil)
+        try await store.save(entry: unstamped, transcription: nil)
+
+        // Assert
+        #expect(try await store.entry(id: stamped.id)?.timeZone == "Pacific/Auckland")
+        #expect(try await store.entry(id: unstamped.id)?.timeZone == nil)
+    }
+
     @Test("journal persists across store instances on the same file")
     func persistsAcrossInstances() async throws {
         // Arrange

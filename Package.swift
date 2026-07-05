@@ -39,7 +39,11 @@ let package = Package(
             name: "JournalStoreSQLCipher",
             dependencies: ["JournalStore", .product(name: "GRDB", package: "GRDB.swift")]
         ),
-        .target(name: "CaptureKit", dependencies: ["JournalStore", "DesignSystem"]),
+        // SafetyKit: the spoken-summary confirm loop routes every generated
+        // recap and clarification through the same crisis gate + banned-terms
+        // validation as reflection, so the model is never reached during a crisis
+        // and its output is bounded before it is ever spoken.
+        .target(name: "CaptureKit", dependencies: ["JournalStore", "DesignSystem", "SafetyKit"]),
         .target(name: "PrivacyKit", dependencies: ["JournalStore"]),
         .target(name: "ReflectKit", dependencies: ["SafetyKit"]),
         .target(name: "RecallKit", dependencies: ["JournalStore"]),
@@ -64,7 +68,7 @@ let package = Package(
             name: "JournalStoreSQLCipherTests",
             dependencies: ["JournalStoreSQLCipher", "JournalStore"]
         ),
-        .testTarget(name: "CaptureKitTests", dependencies: ["CaptureKit", "JournalStore"]),
+        .testTarget(name: "CaptureKitTests", dependencies: ["CaptureKit", "JournalStore", "SafetyKit"]),
         .testTarget(name: "PrivacyKitTests", dependencies: ["PrivacyKit", "CaptureKit", "JournalStore"]),
         .testTarget(name: "ReflectKitTests", dependencies: ["ReflectKit", "SafetyKit"]),
         .testTarget(name: "RecallKitTests", dependencies: ["RecallKit"]),

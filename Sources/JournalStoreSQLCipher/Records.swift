@@ -19,6 +19,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
     var mood: String?
     var updatedAt: Date?
     var locale: String
+    var timeZone: String?
 
     init(_ entry: Entry) {
         id = entry.id.uuidString
@@ -32,6 +33,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
         mood = entry.mood
         updatedAt = entry.updatedAt
         locale = entry.locale
+        timeZone = entry.timeZone
     }
 
     /// Returns nil if the row is malformed (bad UUID or unknown source) so the
@@ -52,7 +54,8 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
             mood: mood,
             // Rows created before v3 backfill to createdAt (handled in the initializer).
             updatedAt: updatedAt,
-            locale: locale
+            locale: locale,
+            timeZone: timeZone
         )
     }
 }
@@ -142,6 +145,32 @@ struct DismissedSuggestionRecord: Codable, FetchableRecord, PersistableRecord {
     var name: String
 }
 
+/// One sentence embedding per entry, stored as a little-endian Float32 BLOB —
+/// the first binary column in the schema. Derived data: excluded from export,
+/// re-derivable on device, cascades away with its entry.
+struct EmbeddingRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "entry_embedding"
+
+    var entryId: String
+    var vector: Data
+    var dimension: Int
+
+    init(entryId: UUID, vector: [Float]) {
+        self.entryId = entryId.uuidString
+        self.vector = vector.withUnsafeBufferPointer { Data(buffer: $0) }
+        dimension = vector.count
+    }
+
+    func toEmbedding() -> EntryEmbedding? {
+        guard let uuid = UUID(uuidString: entryId),
+              dimension > 0,
+              vector.count == dimension * MemoryLayout<Float>.stride
+        else { return nil }
+        let floats = vector.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+        return EntryEmbedding(entryId: uuid, vector: floats)
+    }
+}
+
 enum JournalSchema {
     static let migrator: DatabaseMigrator = {
         var migrator = DatabaseMigrator()
@@ -225,6 +254,25 @@ enum JournalSchema {
                     .references(EntryRecord.databaseTableName, onDelete: .cascade)
                 t.column("name", .text).notNull()
                 t.primaryKey(["entryId", "name"])
+            }
+        }
+        // IANA timezone at capture. Nullable with no backfill — the zone an old
+        // entry was written in is unknowable after the fact, and `createdAt` alone
+        // misreports local hours for entries written while traveling.
+        migrator.registerMigration("v7-entry-timeZone") { db in
+            try db.alter(table: EntryRecord.databaseTableName) { t in
+                t.add(column: "timeZone", .text)
+            }
+        }
+        // Sentence embeddings for semantic recall. A missing row is the work
+        // queue marker (unlike insights' timestamp column): editing an entry
+        // deletes its row so it re-embeds, and deleting the entry cascades.
+        migrator.registerMigration("v8-entry-embedding") { db in
+            try db.create(table: EmbeddingRecord.databaseTableName) { t in
+                t.primaryKey("entryId", .text)
+                    .references(EntryRecord.databaseTableName, onDelete: .cascade)
+                t.column("vector", .blob).notNull()
+                t.column("dimension", .integer).notNull()
             }
         }
         return migrator

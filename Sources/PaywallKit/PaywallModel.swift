@@ -35,13 +35,17 @@ public final class PaywallModel {
         )
     }
 
-    /// New captures are gated when the trial has lapsed without a purchase.
-    /// Reading and export are never gated (invariant #8).
-    public var isLocked: Bool { !EntitlementPolicy.isCaptureAllowed(entitlement) }
+    /// The insight surfaces (weekly review synthesis, mind map, tag
+    /// suggestions, spoken recap) are gated when the trial has lapsed without a
+    /// purchase. Capture, reading, and export are never gated — the inverted
+    /// paywall sells the understanding layer, not the writing habit.
+    public var isInsightLocked: Bool {
+        !EntitlementPolicy.isInsightAllowed(entitlement)
+    }
 
     /// Load products and recompute entitlement from current ownership.
     public func refresh() async {
-        let loaded = (try? await gateway.availableProducts()) ?? []
+        let loaded = await (try? gateway.availableProducts()) ?? []
         let owned = await gateway.ownedProductIDs()
         products = Self.annualFirst(loaded)
         entitlement = EntitlementPolicy.state(

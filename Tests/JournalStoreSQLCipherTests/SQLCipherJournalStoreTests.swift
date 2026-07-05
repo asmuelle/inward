@@ -38,6 +38,72 @@ struct SQLCipherJournalStoreTests {
         #expect(try await store.transcription(entryID: entry.id) == transcription)
     }
 
+    @Test("the capture timezone round-trips; entries without one stay nil")
+    func timeZoneRoundTrip() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let stamped = Entry(
+            createdAt: Date(timeIntervalSince1970: 1_750_000_000),
+            source: .text,
+            transcriptRaw: "stamped",
+            textEdited: "stamped",
+            locale: "en_US",
+            timeZone: "Pacific/Auckland"
+        )
+        let unstamped = makeEntry()
+
+        try await store.save(entry: stamped, transcription: nil)
+        try await store.save(entry: unstamped, transcription: nil)
+
+        #expect(try await store.entry(id: stamped.id)?.timeZone == "Pacific/Auckland")
+        #expect(try await store.entry(id: unstamped.id)?.timeZone == nil)
+    }
+
+    @Test("embeddings round-trip and editing an entry re-queues it")
+    func embeddingLifecycle() async throws {
+        // Arrange
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        #expect(try await store.entryIDsNeedingEmbedding(limit: 10) == [entry.id])
+
+        // Act — store a vector; the queue drains
+        try await store.setEmbedding([0.5, -1.25, 3], for: entry.id)
+
+        // Assert
+        let stored = try await store.allEmbeddings()
+        #expect(stored == [EntryEmbedding(entryId: entry.id, vector: [0.5, -1.25, 3])])
+        #expect(try await store.entryIDsNeedingEmbedding(limit: 10).isEmpty)
+
+        // Act — editing invalidates the vector so the entry re-embeds
+        try await store.updateEditedText(entryID: entry.id, textEdited: "Rewritten completely.")
+
+        // Assert
+        #expect(try await store.allEmbeddings().isEmpty)
+        #expect(try await store.entryIDsNeedingEmbedding(limit: 10) == [entry.id])
+    }
+
+    @Test("deleting an entry cascades its embedding away")
+    func embeddingCascadesOnDelete() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry()
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setEmbedding([1, 2], for: entry.id)
+
+        try await store.delete(entryID: entry.id)
+
+        #expect(try await store.allEmbeddings().isEmpty)
+    }
+
+    @Test("embedding an unknown entry throws entryNotFound")
+    func embeddingUnknownEntryThrows() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let missing = UUID()
+
+        await #expect(throws: JournalStoreError.entryNotFound(missing)) {
+            try await store.setEmbedding([1], for: missing)
+        }
+    }
+
     @Test("the precomputed summary is persisted, not recomputed on read")
     func summaryPersists() async throws {
         let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())

@@ -5,8 +5,10 @@ import JournalStore
 import JournalStoreSQLCipher
 import PaywallKit
 import PrivacyKit
+import RecallKit
 import ReflectKit
 import SwiftUI
+import UserNotifications
 
 /// Composition root only — no business logic lives in the app shell.
 @main
@@ -15,6 +17,9 @@ struct InwardApp: App {
 
     init() {
         store = Self.makeStore()
+        // Routes weekly-reminder taps to the review surface. Installing the
+        // delegate never prompts — authorization is requested only from Settings.
+        UNUserNotificationCenter.current().delegate = WeeklyReviewReminderDelegate.shared
     }
 
     var body: some Scene {
@@ -24,6 +29,9 @@ struct InwardApp: App {
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
+                embedder: SentenceTextEmbedder(),
+                summaryProvider: Self.makeSummaryProvider(),
+                synthesizer: Self.makeSynthesizer(),
                 authenticator: LocalAuthenticationAuthenticator(),
                 purchaseGateway: StoreKitPurchaseGateway(),
                 trialStartedAt: Prefs.trialStart()
@@ -75,6 +83,35 @@ struct InwardApp: App {
     private static func makeEngine() -> (any TranscriptionEngine)? {
         if #available(iOS 26.0, macOS 26.0, *) {
             return SpeechTranscriberEngine()
+        }
+        return nil
+    }
+
+    /// Provider for the opt-in spoken-recap loop: Apple Intelligence when present,
+    /// the deterministic floor (the person's own first sentence + a fixed open
+    /// question) otherwise — so the loop works even without a model. The crisis
+    /// gate and output validation live in `CaptureSummaryPipeline`, wired in
+    /// `RootView` only when the setting is on.
+    private static func makeSummaryProvider() -> any CaptureSummaryProviding {
+        // Always-available deterministic floor (the person's own first sentence +
+        // a fixed question). On iOS/macOS 26 we prefer the model but fall back to
+        // this floor at runtime — crucially, an iOS 26 device WITHOUT Apple
+        // Intelligence (e.g. iPhone 12 mini) must still speak, not go silent.
+        let deterministic = DeterministicCaptureSummaryProvider(clarificationQuestion: Copy.clarifyDefaultQuestion)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return PreferredCaptureSummaryProvider(
+                primary: FoundationModelsCaptureSummaryProvider(),
+                fallback: deterministic
+            )
+        }
+        return deterministic
+    }
+
+    /// On-device text-to-speech for the spoken recap; nil below iOS/macOS 26, in
+    /// which case the loop never engages and capture stays on the silent path.
+    private static func makeSynthesizer() -> (any SpeechSynthesisEngine)? {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            return AVSpeechSynthesisEngine()
         }
         return nil
     }

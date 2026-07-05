@@ -53,6 +53,12 @@
                         onFinished()
                     }
                 )
+            case .summarizing:
+                thinkingStage(label: Copy.summarizingLabel)
+            case let .confirming(_, summary):
+                confirmStage(summary: summary)
+            case let .clarifying(_, question):
+                clarifyingStage(question: question)
             case .saving:
                 ProgressView()
                     .tint(.inwardClay)
@@ -120,6 +126,60 @@
                 Text(Copy.stillness)
                     .font(.lamplight(.caption))
                     .foregroundStyle(Color.inwardSage)
+            }
+        }
+
+        /// Transient spinner while the recap is formed and read aloud.
+        private func thinkingStage(label: String) -> some View {
+            VStack(spacing: Lamplight.Spacing.block) {
+                ProgressView().tint(.inwardClay)
+                Text(label)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+            }
+            .multilineTextAlignment(.center)
+        }
+
+        /// The recap, read back, with the three quiet choices: keep it, say more,
+        /// or let it go. No editor here — editing stays in the read-it-back path.
+        private func confirmStage(summary: String) -> some View {
+            VStack(spacing: Lamplight.Spacing.section) {
+                Text(summary)
+                    .font(.lamplight(.entryProse))
+                    .foregroundStyle(Color.inwardInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(spacing: Lamplight.Spacing.block) {
+                    Button(Copy.confirmKeep) {
+                        Task { await coordinator.confirmKeep() }
+                    }
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardClay)
+                    Button(Copy.confirmAddMore) {
+                        Task { await coordinator.requestClarification() }
+                    }
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardInk)
+                    Button(Copy.discardEntry) {
+                        coordinator.reset()
+                        onFinished()
+                    }
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+                }
+            }
+        }
+
+        /// The spoken clarification question on screen while it's read aloud; the
+        /// mic re-arms the moment it finishes, so no button is needed here.
+        private func clarifyingStage(question: String) -> some View {
+            VStack(spacing: Lamplight.Spacing.section) {
+                Text(question)
+                    .font(.lamplight(.entryProse))
+                    .foregroundStyle(Color.inwardInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                ProgressView().tint(.inwardClay)
             }
         }
 

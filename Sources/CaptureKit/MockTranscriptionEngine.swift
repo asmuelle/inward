@@ -18,6 +18,8 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
     /// (nor downloads) until assets are installed.
     public private(set) var didStart = false
     public private(set) var didPrepare = false
+    /// Test inspection: the last vocabulary handed over for recognition biasing.
+    public private(set) var receivedVocabulary: [String]?
 
     public init(
         volatileSegments: [String],
@@ -62,5 +64,9 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
         continuation?.yield(TranscriptSegment(text: finalTranscript, isFinal: true, confidence: finalConfidence))
         continuation?.finish()
         continuation = nil
+    }
+
+    public func setContextualVocabulary(_ terms: [String]) async {
+        receivedVocabulary = terms
     }
 }

@@ -120,6 +120,8 @@ extension Translations {
         "paywallBusy": "Arbeite…",
         "paywallReassurance": "Kein Konto. Keine Server. Deine Worte verlassen dieses Telefon nie.",
         "membershipLink": "Mitgliedschaft",
+        "legalPrivacyLink": "Datenschutzerklärung",
+        "legalTermsLink": "Nutzungsbedingungen",
         "stillness": "Funktioniert im Flugmodus. Nichts verlässt dieses Telefon.",
         "summarizingLabel": "Lese es dir vor…",
         "confirmKeep": "Behalten",

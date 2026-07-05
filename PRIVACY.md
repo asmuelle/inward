@@ -49,5 +49,4 @@ date above.
 
 ## Contact
 
-Questions about privacy: **support@inward.app**
-_(Replace with a monitored address before release.)_
+Questions about privacy: **herban.mueller@gmail.com**

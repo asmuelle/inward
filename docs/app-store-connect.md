@@ -99,8 +99,13 @@ A privacy policy URL is still required even when nothing is collected:
 - [ ] Upload listing text: `fastlane deliver` (or paste from `fastlane/metadata/`).
 - [ ] Set primary category **Lifestyle**, secondary Productivity.
 - [ ] Set privacy policy URL; complete App Privacy as **Data Not Collected**.
-- [ ] Replace the placeholder `support@inward.app` with a monitored address in
-      `PRIVACY.md`, `docs/privacy.html`, and the ASC support URL/contact.
+- [x] Support/privacy contact is `herban.mueller@gmail.com` (monitored) in
+      `PRIVACY.md` and `docs/privacy.html`; use the same address as the ASC
+      support contact.
+- [ ] Export compliance: the binary declares `ITSAppUsesNonExemptEncryption = YES`
+      (SQLCipher, AES-256 at rest — non-exempt). Answer the ASC export questions
+      accordingly and file the annual US BIS self-classification report
+      (mass-market, 5D992.c). France: provide the import declaration if asked.
 - [ ] Upload screenshots, including one of the paywall (required for IAP review).
 - [ ] Add reviewer notes from `fastlane/metadata/review_information/notes.txt`
       (airplane-mode verification; no demo account needed).

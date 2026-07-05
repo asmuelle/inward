@@ -119,6 +119,8 @@ extension Translations {
         "paywallBusy": "A processar…",
         "paywallReassurance": "Sem conta. Sem servidores. As tuas palavras nunca saem deste telefone.",
         "membershipLink": "Subscrição",
+        "legalPrivacyLink": "Política de Privacidade",
+        "legalTermsLink": "Termos de Utilização",
         "stillness": "Funciona em modo avião. Nada sai deste telefone.",
         "summarizingLabel": "A reler para ti…",
         "confirmKeep": "Guardar",

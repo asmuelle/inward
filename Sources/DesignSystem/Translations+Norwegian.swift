@@ -119,6 +119,8 @@ extension Translations {
         "paywallBusy": "Jobber…",
         "paywallReassurance": "Ingen konto. Ingen servere. Ordene dine forlater aldri denne telefonen.",
         "membershipLink": "Medlemskap",
+        "legalPrivacyLink": "Personvernerklæring",
+        "legalTermsLink": "Vilkår for bruk",
         "stillness": "Virker i flymodus. Ingenting forlater denne telefonen.",
         "summarizingLabel": "Leser det tilbake…",
         "confirmKeep": "Behold",

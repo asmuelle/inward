@@ -33,6 +33,13 @@ struct SettingsView: View {
                         .font(.lamplight(.caption))
                         .foregroundStyle(Color.inwardSage)
                         .frame(maxWidth: .infinity, alignment: .center)
+                    HStack(spacing: Lamplight.Spacing.element) {
+                        Link(Copy.legalPrivacyLink, destination: LegalLinks.privacyPolicy)
+                        Link(Copy.legalTermsLink, destination: LegalLinks.termsOfUse)
+                    }
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardClay)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding(Lamplight.Spacing.block)
             }

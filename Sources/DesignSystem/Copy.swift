@@ -291,6 +291,11 @@ public enum Copy {
     )
     public static let membershipLink = Localized.t("membershipLink", "Membership")
 
+    // MARK: Legal
+
+    public static let legalPrivacyLink = Localized.t("legalPrivacyLink", "Privacy Policy")
+    public static let legalTermsLink = Localized.t("legalTermsLink", "Terms of Use")
+
     // MARK: Quiet reassurance
 
     public static let stillness = Localized.t("stillness", "Works in airplane mode. Nothing leaves this phone.")
@@ -443,6 +448,8 @@ public enum Copy {
         paywallBusy,
         paywallReassurance,
         membershipLink,
+        legalPrivacyLink,
+        legalTermsLink,
         weeklyReviewLink,
         weeklyReviewTitle,
         weeklyReviewIntro,

@@ -48,6 +48,11 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.inward.Inward
         GENERATE_INFOPLIST_FILE: YES
+        # Export compliance: SQLCipher (AES-256 at rest) is non-exempt
+        # encryption — declared YES so uploads never stall on the ASC
+        # question. Requires the annual US self-classification report;
+        # see docs/app-store-connect.md.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Inward listens only while you record. Audio is transcribed on this phone and never leaves it."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcription happens on this phone."

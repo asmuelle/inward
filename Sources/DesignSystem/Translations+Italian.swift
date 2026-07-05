@@ -119,6 +119,8 @@ extension Translations {
         "paywallBusy": "In corso…",
         "paywallReassurance": "Nessun account. Nessun server. Le tue parole non lasciano mai questo telefono.",
         "membershipLink": "Abbonamento",
+        "legalPrivacyLink": "Informativa sulla privacy",
+        "legalTermsLink": "Condizioni d'uso",
         "stillness": "Funziona in modalità aereo. Nulla lascia questo telefono.",
         "summarizingLabel": "Te lo rileggo…",
         "confirmKeep": "Tieni",

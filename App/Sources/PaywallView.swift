@@ -124,6 +124,13 @@ struct PaywallView: View {
                 .font(.lamplight(.caption))
                 .foregroundStyle(Color.inwardSage)
                 .multilineTextAlignment(.center)
+
+            HStack(spacing: Lamplight.Spacing.element) {
+                Link(Copy.legalPrivacyLink, destination: LegalLinks.privacyPolicy)
+                Link(Copy.legalTermsLink, destination: LegalLinks.termsOfUse)
+            }
+            .font(.lamplight(.caption))
+            .foregroundStyle(Color.inwardClay)
         }
         .frame(maxWidth: .infinity)
     }

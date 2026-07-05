@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # The thebrowsercompany fork's tags are not comparable semver: "3.0.1"
+      # vendors GRDB 7.4.1, while "6.6.0" vendors the older GRDB 6.6.0 that
+      # fails to compile on Swift 6.2. A tag-order "bump" silently downgrades
+      # the at-rest crypto layer — update this pin manually, never here.
+      - dependency-name: "github.com/thebrowsercompany/grdb.swift"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

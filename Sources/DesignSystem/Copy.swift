@@ -189,6 +189,14 @@ public enum Copy {
     )
     public static let settingsPrivacyFooter = Localized.t("settingsPrivacyFooter", "No accounts. No servers. No tracking.")
 
+    public static let settingsLanguageTitle = Localized.t("settingsLanguageTitle", "Language")
+    public static let settingsLanguageSystem = Localized.t("settingsLanguageSystem", "Match my phone")
+    public static let settingsLanguageFooter = Localized.t(
+        "settingsLanguageFooter",
+        "The language Inward listens in, reads your notes back in, and writes your weekly look-back in. "
+            + "Changes apply to your next recording; the rest of the app follows the next time you open it."
+    )
+
     // MARK: Export
 
     public static let exportTitle = Localized.t("exportTitle", "Export your journal")
@@ -394,6 +402,9 @@ public enum Copy {
         settingsExport,
         settingsExportFooter,
         settingsPrivacyFooter,
+        settingsLanguageTitle,
+        settingsLanguageSystem,
+        settingsLanguageFooter,
         exportTitle,
         exportHint,
         exportPassphrasePrompt,

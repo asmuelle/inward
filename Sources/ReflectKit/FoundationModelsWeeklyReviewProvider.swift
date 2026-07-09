@@ -1,6 +1,7 @@
 #if canImport(FoundationModels)
     import Foundation
     import FoundationModels
+    import SafetyKit
 
     /// The model's structured weekly review. @Generable forces typed output, so
     /// the citations arrive as entry numbers rather than free text to be parsed.
@@ -14,9 +15,13 @@
     @available(iOS 26.0, macOS 26.0, *)
     @Generable
     struct GeneratedObservation {
-        @Guide(description: "A short, lowercase theme — a recurring word or short phrase in plain language, never a label or a judgment.")
+        @Guide(
+            description: "A short, lowercase theme — a recurring word or short phrase in plain language, never a label or a judgment."
+        )
         var theme: String
-        @Guide(description: "One calm, second-person sentence about this theme that points back at the person's own words. No advice.")
+        @Guide(
+            description: "One calm, second-person sentence about this theme that points back at the person's own words. No advice."
+        )
         var note: String
         @Guide(description: "The entry numbers shown in brackets that this observation draws from. List at least one.")
         var entryNumbers: [Int]
@@ -53,6 +58,10 @@
                 throw ReflectionError.modelUnavailable
             }
 
+            // Review the week in the writer's own language. Named in both the
+            // instructions and the prompt because structured (@Generable) output
+            // otherwise tends to echo the English of the system prompt.
+            let language = AppLanguage.resolved()
             let prompt = """
             Here are this week's journal entries, each with a number in brackets:
 
@@ -60,10 +69,11 @@
 
             Name up to three themes that recur across more than one entry. For each,
             write one quiet, second-person sentence pointing back at what the person
-            wrote, and list the entry numbers it draws from.
+            wrote, and list the entry numbers it draws from. \(language.modelInstruction)
             """
 
-            let session = LanguageModelSession(instructions: Self.instructions)
+            let instructions = "\(language.modelInstruction)\n\n\(Self.instructions)"
+            let session = LanguageModelSession(instructions: instructions)
             do {
                 let response = try await session.respond(to: prompt, generating: GeneratedWeeklyReview.self)
                 return Self.draft(from: response.content, context: context)

@@ -1,6 +1,7 @@
 #if canImport(FoundationModels)
     import Foundation
     import FoundationModels
+    import SafetyKit
 
     /// The model's structured view of an entry. @Generable forces typed output, so
     /// entities arrive as clean lists rather than prose to parse.
@@ -51,7 +52,13 @@
                 throw InsightError.modelUnavailable
             }
 
-            let session = LanguageModelSession(instructions: Self.instructions)
+            // Topics and the feeling word are the model's own phrasing, so pin them
+            // to the writer's language — otherwise a German entry gets English
+            // topics in the mind map. People, places, and objects come from the
+            // writer's own words and stay in-language regardless.
+            let language = AppLanguage.resolved()
+            let instructions = "\(language.modelInstruction)\n\n\(Self.instructions)"
+            let session = LanguageModelSession(instructions: instructions)
             let prompt = """
             Here is the entry:
 
@@ -59,7 +66,7 @@
 
             Extract its people, places, and objects from the writer's own words,
             up to three lowercase topics, one calm word for the feeling, and any
-            next actions the writer named.
+            next actions the writer named. \(language.modelInstruction)
             """
 
             do {

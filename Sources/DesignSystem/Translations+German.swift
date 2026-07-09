@@ -128,6 +128,10 @@ extension Translations {
         "confirmAddMore": "Mehr sagen",
         "clarifyDefaultQuestion": "Was möchtest du noch dazu sagen?",
         "settingsSpokenSummaryToggle": "Notizen vorlesen",
+        "settingsLanguageTitle": "Sprache",
+        "settingsLanguageSystem": "Wie mein Telefon",
+        "settingsLanguageFooter": "Die Sprache, in der Inward zuhört, deine Notizen vorliest und deinen wöchentlichen Rückblick schreibt. "
+            + "Änderungen gelten ab der nächsten Aufnahme; der Rest der App folgt, wenn du sie das nächste Mal öffnest.",
         "settingsSpokenSummaryFooter": "Nach einer Aufnahme spricht Inward eine kurze Zusammenfassung und fragt, ob du sie behalten möchtest. Alles bleibt auf diesem Telefon.",
     ]
 }

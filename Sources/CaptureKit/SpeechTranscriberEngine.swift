@@ -2,6 +2,7 @@
     import AVFoundation
     import Foundation
     import os
+    import SafetyKit
     import Speech
 
     /// On-device ASR via the iOS 26 / macOS 26 SpeechAnalyzer/SpeechTranscriber
@@ -23,11 +24,20 @@
         /// start. In actor memory only — never persisted, never leaves the device.
         private var contextualVocabulary: [String] = []
 
-        public init() {}
+        /// The language to transcribe in, resolved when a recording starts. Defaults
+        /// to the app's chosen language (Settings → Language), which follows the
+        /// device unless the writer picked one — so a German note is recognized as
+        /// German even on an English phone. Evaluated per call so a Settings change
+        /// applies to the next recording. Overridable for tests.
+        private let preferredLocale: @Sendable () -> Locale
+
+        public init(preferredLocale: @escaping @Sendable () -> Locale = { AppLanguage.resolved().locale }) {
+            self.preferredLocale = preferredLocale
+        }
 
         public func availability() async -> TranscriptionAvailability {
             let supported = await SpeechTranscriber.supportedLocales
-            guard TranscriptionLocale.bestMatch(for: .current, among: supported) != nil else {
+            guard TranscriptionLocale.bestMatch(for: preferredLocale(), among: supported) != nil else {
                 return .unavailable(reason: "locale not supported for on-device transcription")
             }
             let granted = await Self.requestMicrophoneAccess()
@@ -41,7 +51,7 @@
         /// Reported separately from `availability()` so the UI can offer a
         /// one-time, consented download before voice ever claims to work offline.
         public func assetReadiness() async -> TranscriptionAssetReadiness {
-            guard let locale = await Self.resolvedLocale() else { return .unsupported }
+            guard let locale = await resolvedLocale() else { return .unsupported }
             // Trust the installed-locales inventory, not the install request. On
             // iOS 26 `assetInstallationRequest(supporting:)` can stay non-nil even
             // after the model is installed (locale allocation), which made the
@@ -55,7 +65,7 @@
         /// engine that may reach the network, and only ever from an explicit
         /// preflight — never from `start()`.
         public func prepareAssets() async throws {
-            guard let locale = await Self.resolvedLocale() else {
+            guard let locale = await resolvedLocale() else {
                 throw TranscriptionError.notAvailable
             }
             if await Self.isInstalled(locale) {
@@ -89,11 +99,12 @@
         }
 
         public func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error> {
-            // Use a locale the model actually supports — Locale.current may be a
-            // region the transcriber doesn't enumerate (e.g. en-DE), which would
+            // Use a locale the model actually supports — the preferred locale may be
+            // a region the transcriber doesn't enumerate (e.g. en-DE), which would
             // otherwise fail at install/recognition time.
+            let preferred = preferredLocale()
             let supported = await SpeechTranscriber.supportedLocales
-            let locale = TranscriptionLocale.bestMatch(for: .current, among: supported) ?? Locale.current
+            let locale = TranscriptionLocale.bestMatch(for: preferred, among: supported) ?? preferred
             let transcriber = Self.makeTranscriber(for: locale)
             self.transcriber = transcriber
 
@@ -165,9 +176,9 @@
         /// The supported on-device locale that best fits the device, or nil when
         /// the user's language has no model at all. Shared by readiness, prepare,
         /// and start so all three agree on which model is in play.
-        private static func resolvedLocale() async -> Locale? {
+        private func resolvedLocale() async -> Locale? {
             let supported = await SpeechTranscriber.supportedLocales
-            return TranscriptionLocale.bestMatch(for: .current, among: supported)
+            return TranscriptionLocale.bestMatch(for: preferredLocale(), among: supported)
         }
 
         /// Whether the on-device model for `locale` is actually installed. The

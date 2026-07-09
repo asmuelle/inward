@@ -127,6 +127,10 @@ extension Translations {
         "confirmAddMore": "En dire plus",
         "clarifyDefaultQuestion": "Qu'aimerais-tu ajouter à ce sujet ?",
         "settingsSpokenSummaryToggle": "Me relire mes notes",
+        "settingsLanguageTitle": "Langue",
+        "settingsLanguageSystem": "Comme mon téléphone",
+        "settingsLanguageFooter": "La langue dans laquelle Inward écoute, vous relit vos notes et rédige votre bilan hebdomadaire. "
+            + "Les changements s'appliquent au prochain enregistrement ; le reste de l'app suit à la prochaine ouverture.",
         "settingsSpokenSummaryFooter": "Après un enregistrement, Inward lit un court résumé à voix haute et demande si tu veux le garder. Tout reste sur ce téléphone.",
     ]
 }

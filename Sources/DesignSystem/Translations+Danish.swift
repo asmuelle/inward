@@ -127,6 +127,10 @@ extension Translations {
         "confirmAddMore": "Sig mere",
         "clarifyDefaultQuestion": "Hvad mere har du lyst til at sige om det her?",
         "settingsSpokenSummaryToggle": "Læs mine noter op",
+        "settingsLanguageTitle": "Sprog",
+        "settingsLanguageSystem": "Følg telefonen",
+        "settingsLanguageFooter": "Sproget, som Inward lytter på, læser dine noter op på og skriver dit ugentlige tilbageblik på. "
+            + "Ændringer gælder fra næste optagelse; resten af appen følger, næste gang du åbner den.",
         "settingsSpokenSummaryFooter": "Efter en optagelse læser Inward et kort resumé op og spørger, om du vil beholde det. Alt bliver på denne telefon.",
     ]
 }

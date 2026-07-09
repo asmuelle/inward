@@ -77,6 +77,14 @@ _require-project:
         echo "(If project.yml is missing too, the repo is a docs-only scaffold; see DESIGN.md M0.)"; \
         exit 1; \
     fi
+    @# XcodeGen doesn't regenerate on its own: a project.yml edit (new Info.plist
+    @# keys, entitlements, targets) leaves the .xcodeproj stale, which surfaces on
+    @# device as "not a valid bundle / missing CFBundleIdentifier" or provisioning
+    @# packaging failures. Regenerate whenever project.yml is newer than the project.
+    @if [ project.yml -nt "{{app}}.xcodeproj/project.pbxproj" ]; then \
+        echo "project.yml is newer than {{app}}.xcodeproj — regenerating…"; \
+        xcodegen generate; \
+    fi
 
 _require-sources:
     @if [ ! -f project.yml ]; then \

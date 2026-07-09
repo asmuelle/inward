@@ -1,6 +1,7 @@
 import DesignSystem
 import JournalStore
 import QuickCaptureKit
+import SafetyKit
 import SwiftUI
 
 /// The privacy controls: the optional lock and the encrypted export, plus the
@@ -8,6 +9,7 @@ import SwiftUI
 struct SettingsView: View {
     let store: any JournalStoring
 
+    @AppStorage(AppLanguage.preferenceKey) private var languageCode = AppLanguage.systemValue
     @AppStorage(Prefs.lockEnabled) private var lockEnabled = false
     @AppStorage(Prefs.spokenSummaryEnabled) private var spokenSummaryEnabled = false
     @AppStorage(Prefs.weeklyReminderEnabled) private var weeklyReminderEnabled = false
@@ -23,6 +25,7 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.section) {
+                    languageSection
                     lockSection
                     spokenSummarySection
                     weeklyReminderSection
@@ -59,6 +62,34 @@ struct SettingsView: View {
                 ImportView(store: store)
             }
         }
+    }
+
+    /// The one language Inward listens, reads back, and reflects in. "Match my
+    /// phone" follows the device; an explicit choice pins every on-device surface
+    /// so a note spoken in one language is never read back in another.
+    private var languageSection: some View {
+        PaperCard {
+            VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+                Picker(selection: $languageCode) {
+                    Text(Copy.settingsLanguageSystem).tag(AppLanguage.systemValue)
+                    ForEach(AppLanguage.supportedCodes, id: \.self) { code in
+                        Text(AppLanguage.endonym(for: code)).tag(code)
+                    }
+                } label: {
+                    Text(Copy.settingsLanguageTitle)
+                        .font(.lamplight(.entryProse))
+                        .foregroundStyle(Color.inwardInk)
+                }
+                .tint(.inwardClay)
+                Text(Copy.settingsLanguageFooter)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardSage)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        // Apply immediately so any freshly rendered copy follows; transcription,
+        // the spoken recap, and the model resolve the same choice on next use.
+        .onChange(of: languageCode) { _, _ in Localized.override = AppLanguage.selection() }
     }
 
     private var lockSection: some View {

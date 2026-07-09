@@ -22,6 +22,24 @@ public enum Localized {
         "ru": Translations.ru,
     ]
 
+    /// An explicit language chosen in Settings, set by the app from the user's
+    /// Language preference. `nil` (the default) follows the device via
+    /// `Locale.preferredLanguages`; a code (e.g. "de") pins the UI to that table,
+    /// and "en" pins the in-code English default. Matches the same choice that
+    /// drives transcription, the spoken recap, and the model's output language, so
+    /// the whole app speaks one language. Set before any `Copy` string is read.
+    ///
+    /// Read on every `t(_:_:)` call and written from the main actor at launch and
+    /// on change, so it is guarded by a lock rather than actor isolation — `Copy`'s
+    /// nonisolated `static let`s must be able to read it.
+    public static var override: String? {
+        get { overrideLock.withLock { overrideStorage } }
+        set { overrideLock.withLock { overrideStorage = newValue } }
+    }
+
+    private static let overrideLock = NSLock()
+    private nonisolated(unsafe) static var overrideStorage: String?
+
     /// The localized string for `key`, or `english` when there's no translation
     /// (unsupported language, or a key the active table doesn't cover).
     public static func t(_ key: String, _ english: String) -> String {
@@ -29,9 +47,14 @@ public enum Localized {
         return value
     }
 
-    /// The first of the user's preferred languages we have a table for; nil means
-    /// English (the in-code default). Norwegian variants map to Bokmål.
+    /// The active translation table's code, or nil for the English default. An
+    /// explicit Settings choice wins; otherwise the first of the user's preferred
+    /// languages we have a table for. Norwegian variants map to Bokmål.
     static var activeCode: String? {
+        if let override {
+            // "en" (and any language without a table) means the English default.
+            return tables[override] != nil ? override : nil
+        }
         for identifier in Locale.preferredLanguages {
             let code = Locale(identifier: identifier).language.languageCode?.identifier
                 ?? String(identifier.prefix(2))

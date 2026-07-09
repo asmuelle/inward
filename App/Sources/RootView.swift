@@ -591,18 +591,24 @@ struct RootView: View {
         // platform supplied a synthesizer. Otherwise capture stays on the silent
         // read-it-back path — never a lock. The crisis gate is localized so
         // suppression matches the user's language.
+        // One resolved language drives the whole loop: the TTS voice (via
+        // localeIdentifier), the crisis gate's localized resources, and the locale
+        // stamped on saved entries — so a German note is read back and matched in
+        // German, never English with a German accent.
+        let language = AppLanguage.resolved()
         let spokenSummaryOn = UserDefaults.standard.bool(forKey: Prefs.spokenSummaryEnabled)
         guard spokenSummaryOn, !paywall.isInsightLocked, let synthesizer else {
-            return CaptureCoordinator(engine: engine, store: store)
+            return CaptureCoordinator(engine: engine, store: store, localeIdentifier: language.locale.identifier)
         }
         return CaptureCoordinator(
             engine: engine,
             store: store,
             summaryPipeline: CaptureSummaryPipeline(
-                gate: CrisisGate(localizedFor: .current),
+                gate: CrisisGate(localizedFor: language.locale),
                 provider: summaryProvider
             ),
-            synthesizer: synthesizer
+            synthesizer: synthesizer,
+            localeIdentifier: language.locale.identifier
         )
     }
 

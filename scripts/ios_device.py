@@ -5,15 +5,17 @@ Prints "<coredevice-id> <hardware-udid>" for the best-matching iPhone/iPad, or
 nothing (exit 1) if none is reachable. The CoreDevice id drives devicectl
 install/launch; the hardware UDID drives the xcodebuild device destination.
 
-A device is usable when it is paired and either:
-  - its secure tunnel is already `connected`, or
-  - it is `wired` (plugged in) — devicectl establishes the tunnel on demand.
+A device is usable when it is paired. devicectl establishes the secure tunnel
+on demand for the actual install/launch, whether the phone is `wired` (plugged
+in) or reachable over `localNetwork` (Wi-Fi).
 
 The tunnel idles to `disconnected` within seconds of inactivity, so requiring
-it to be `connected` at list time wrongly rejects a perfectly usable wired
-phone. The subsequent xcodebuild/devicectl calls re-establish it and hold it
-for the whole install/launch. A `connected` device is still preferred when more
-than one matches.
+it to be `connected` at list time wrongly rejects a perfectly usable phone —
+including a Wi-Fi device whose tunnel is simply idle. The subsequent
+xcodebuild/devicectl calls re-establish it and hold it for the whole
+install/launch. When several devices match we still prefer the one with the
+least setup work: an already-`connected` tunnel first, then `wired`, then
+`localNetwork`.
 
 An optional argv[1] name fragment narrows the match (e.g. "Excalibur").
 """
@@ -31,16 +33,16 @@ def is_phone_or_pad(device: dict[str, Any]) -> bool:
 
 
 def usable(device: dict[str, Any]) -> bool:
-    """Paired, and either tunneled now or wired (tunnel comes up on demand)."""
-    conn = device.get("connectionProperties", {})
-    if conn.get("pairingState") != "paired":
-        return False
-    return conn.get("tunnelState") == "connected" or conn.get("transportType") == "wired"
+    """Paired is enough — devicectl brings the tunnel up on demand."""
+    return device.get("connectionProperties", {}).get("pairingState") == "paired"
 
 
 def tunnel_rank(device: dict[str, Any]) -> int:
-    """Prefer an already-connected tunnel over a wired-but-idle one."""
-    return 0 if device.get("connectionProperties", {}).get("tunnelState") == "connected" else 1
+    """Least setup first: connected tunnel, then wired, then localNetwork."""
+    conn = device.get("connectionProperties", {})
+    if conn.get("tunnelState") == "connected":
+        return 0
+    return 1 if conn.get("transportType") == "wired" else 2
 
 
 def main() -> int:

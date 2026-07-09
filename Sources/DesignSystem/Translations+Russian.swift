@@ -127,6 +127,10 @@ extension Translations {
         "confirmAddMore": "Сказать ещё",
         "clarifyDefaultQuestion": "Что ещё ты хочешь сказать об этом?",
         "settingsSpokenSummaryToggle": "Зачитывать мои записи",
+        "settingsLanguageTitle": "Язык",
+        "settingsLanguageSystem": "Как на телефоне",
+        "settingsLanguageFooter": "Язык, на котором Inward слушает, зачитывает ваши записи и пишет еженедельный обзор. "
+            + "Изменения действуют со следующей записи; остальная часть приложения — при следующем открытии.",
         "settingsSpokenSummaryFooter": "После записи Inward произносит краткое резюме и спрашивает, оставить ли его. Всё остаётся на этом телефоне.",
     ]
 }

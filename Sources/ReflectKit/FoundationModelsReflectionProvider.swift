@@ -1,6 +1,7 @@
 #if canImport(FoundationModels)
     import Foundation
     import FoundationModels
+    import SafetyKit
 
     /// The shipped provider: Apple's on-device model via FoundationModels. Runs
     /// only behind the deterministic gate inside `ReflectionPipeline`; if the
@@ -32,7 +33,9 @@
             guard case .available = SystemLanguageModel.default.availability else {
                 throw ReflectionError.modelUnavailable
             }
-            let session = LanguageModelSession(instructions: Self.instructions)
+            // Reflect back in the writer's own language, not the English of the prompt.
+            let instructions = "\(AppLanguage.resolved().modelInstruction)\n\n\(Self.instructions)"
+            let session = LanguageModelSession(instructions: instructions)
             do {
                 let response = try await session.respond(to: entryText)
                 return Self.parse(response.content)

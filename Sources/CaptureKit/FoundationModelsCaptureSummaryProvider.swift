@@ -1,6 +1,7 @@
 #if canImport(FoundationModels)
     import Foundation
     import FoundationModels
+    import SafetyKit
 
     /// The shipped capture-summary provider: Apple's on-device model via
     /// FoundationModels. Runs only behind the deterministic gate inside
@@ -46,7 +47,12 @@
             guard case .available = SystemLanguageModel.default.availability else {
                 throw CaptureSummaryError.modelUnavailable
             }
-            let session = LanguageModelSession(instructions: instructions)
+            // Pin the reply to the writer's language, or the model answers in the
+            // language of its English prompt — the German voice then reads an
+            // English recap aloud. Resolved per call so a Settings change applies
+            // to the very next recording without a relaunch.
+            let localized = "\(AppLanguage.resolved().modelInstruction)\n\n\(instructions)"
+            let session = LanguageModelSession(instructions: localized)
             do {
                 let response = try await session.respond(to: entryText)
                 return response.content.trimmingCharacters(in: .whitespacesAndNewlines)

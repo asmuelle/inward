@@ -7,6 +7,7 @@ import PaywallKit
 import PrivacyKit
 import RecallKit
 import ReflectKit
+import SafetyKit
 import SwiftUI
 import UserNotifications
 
@@ -16,6 +17,10 @@ struct InwardApp: App {
     private let store: any JournalStoring
 
     init() {
+        // Pin the UI copy to the chosen language before any `Copy` string is read
+        // (its values resolve once, lazily). The same choice drives transcription,
+        // the spoken recap, and the model's output language elsewhere.
+        Localized.override = AppLanguage.selection()
         store = Self.makeStore()
         // Routes weekly-reminder taps to the review surface. Installing the
         // delegate never prompts — authorization is requested only from Settings.

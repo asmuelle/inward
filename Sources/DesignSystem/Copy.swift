@@ -21,6 +21,19 @@ public enum Copy {
     public static let timelineSearchEmpty = Localized.t("timelineSearchEmpty", "Nothing sounds like that yet.")
     public static let timelineSearchClear = Localized.t("timelineSearchClear", "Clear search")
     public static let relatedEntriesLabel = Localized.t("relatedEntriesLabel", "Entries that feel like this one")
+    /// Asking the entries: the question-and-answer card above search results.
+    public static let askEntriesButton = Localized.t("askEntriesButton", "Ask your entries about this")
+    public static let askEntriesHeader = Localized.t("askEntriesHeader", "From your entries")
+    public static let askEntriesReading = Localized.t("askEntriesReading", "Reading your entries…")
+    public static let askEntriesNotFound = Localized.t(
+        "askEntriesNotFound",
+        "Your entries don't say. Here is the closest you wrote."
+    )
+    public static let askEntriesUnavailable = Localized.t(
+        "askEntriesUnavailable",
+        "Asking isn't ready on this phone yet. Here is the closest you wrote."
+    )
+    public static let askEntriesClear = Localized.t("askEntriesClear", "Clear the answer")
     public static let echoHeader = Localized.t("echoHeader", "On this day")
     public static let echoDismiss = Localized.t("echoDismiss", "Don't show this memory again")
 
@@ -345,6 +358,12 @@ public enum Copy {
         timelineSearchEmpty,
         timelineSearchClear,
         relatedEntriesLabel,
+        askEntriesButton,
+        askEntriesHeader,
+        askEntriesReading,
+        askEntriesNotFound,
+        askEntriesUnavailable,
+        askEntriesClear,
         echoHeader,
         echoDismiss,
         recordAccessibility,

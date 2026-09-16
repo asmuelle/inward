@@ -102,6 +102,14 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 3. UI renders each observation with tappable citations that open the original entries — the trust artifact.
 4. Reviews with invalid citations are rejected and regenerated once; second failure shows themes-only (deterministic counts) without synthesis.
 
+### 3b. Ask your entries (question over retrieved entries)
+1. A timeline search query that reads as a question (`QuestionDetector`: trailing "?" or a question opener in any supported language) shows an "Ask your entries about this" card above the literal + semantic search results.
+2. On tap, the top search results (best match first, capped at 8, then trimmed to a 5K-token budget by `QuestionContext.fitting`) become the only citable entries. Nothing outside them can be referenced.
+3. `JournalQuestionPipeline` runs the crisis gate over the question *and* the retrieved summaries before any model call; a match shows static resources only.
+4. `ReflectKit` answers with a @Generable `JournalAnswer`: one to three second-person sentences plus entry numbers, or an explicit "not in the entries" flag. Citations resolve through the same numbering as the weekly review.
+5. An answer with no valid citation, a citation outside the retrieved set, regulated vocabulary, or lecture-length prose is regenerated once; a second failure degrades to the plain retrieval list. The model's own "not in the entries" flag is honoured without retry.
+6. Each question is stateless — no history, no conversation — which keeps the surface a re-reading of the writer's own words rather than a companion. Synthesis is part of the paid understanding layer; the retrieved entries stay readable underneath in every state.
+
 ### 4. Airplane-mode proof (onboarding + marketing surface)
 1. Onboarding invites the user to enable airplane mode and record their first entry.
 2. The proof screen shows: airplane-mode state, entry saved, transcript produced, and points to iOS App Privacy Report ("check it — no network activity").

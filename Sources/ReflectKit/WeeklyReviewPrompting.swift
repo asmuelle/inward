@@ -14,7 +14,13 @@ enum WeeklyReviewPrompting {
     /// The entries listed for the model, each prefixed with the 1-based number it
     /// cites back. This numbering MUST stay in lockstep with `resolve(numbers:in:)`.
     static func entryList(for context: WeekContext) -> String {
-        context.entries.enumerated()
+        entryList(context.entries)
+    }
+
+    /// The numbered form shared with the question pipeline, which lists retrieved
+    /// entries the same way so one `resolve` serves both.
+    static func entryList(_ entries: [ReviewableEntry]) -> String {
+        entries.enumerated()
             .map { "[\($0.offset + 1)] \($0.element.summary)" }
             .joined(separator: "\n")
     }

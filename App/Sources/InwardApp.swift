@@ -33,6 +33,7 @@ struct InwardApp: App {
                 store: store,
                 engine: Self.makeEngine(),
                 reviewProvider: Self.makeReviewProvider(),
+                questionProvider: Self.makeQuestionProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
                 embedder: SentenceTextEmbedder(),
                 summaryProvider: Self.makeSummaryProvider(),
@@ -49,6 +50,13 @@ struct InwardApp: App {
     /// themes (handled in WeeklyReviewModel), so the feature is never empty.
     private static func makeReviewProvider() -> any WeeklyReviewProviding {
         FoundationModelsWeeklyReviewProvider()
+    }
+
+    /// On-device question answering over retrieved entries via FoundationModels.
+    /// When Apple Intelligence is unavailable the ask card degrades to the plain
+    /// retrieval list (handled in the pipeline), so the search is never empty.
+    private static func makeQuestionProvider() -> any JournalQuestionProviding {
+        FoundationModelsJournalQuestionProvider()
     }
 
     /// Entity/topic extraction for the background indexer: Apple Intelligence when

@@ -16,6 +16,7 @@ struct RootView: View {
     private let store: any JournalStoring
     private let engine: (any TranscriptionEngine)?
     private let reviewProvider: any WeeklyReviewProviding
+    private let questionProvider: any JournalQuestionProviding
     /// Spoken-recap dependencies — present only when the platform supports them.
     /// They engage solely when the opt-in setting is on (see `makeCoordinator`).
     private let summaryProvider: any CaptureSummaryProviding
@@ -31,6 +32,9 @@ struct RootView: View {
     /// `nil` results mean "not searching" — the timeline shows everything.
     @State private var searchText = ""
     @State private var searchResults: [Entry]?
+    /// Asking the entries a question, over the current search results as the
+    /// retrieved candidates. Reset whenever the query changes.
+    @State private var ask: AskJournalModel
     /// Today's "on this day" echo, recomputed with each refresh; in-app only —
     /// journal text never crosses into widgets or notifications.
     @State private var echo: Entry?
@@ -68,6 +72,7 @@ struct RootView: View {
         store: any JournalStoring,
         engine: (any TranscriptionEngine)?,
         reviewProvider: any WeeklyReviewProviding,
+        questionProvider: any JournalQuestionProviding,
         entityExtractor: any EntityExtracting,
         embedder: any TextEmbedding,
         summaryProvider: any CaptureSummaryProviding,
@@ -79,6 +84,7 @@ struct RootView: View {
         self.store = store
         self.engine = engine
         self.reviewProvider = reviewProvider
+        self.questionProvider = questionProvider
         self.summaryProvider = summaryProvider
         self.synthesizer = synthesizer
         _model = State(initialValue: TimelineModel(store: store))
@@ -90,6 +96,19 @@ struct RootView: View {
         _insightIndexer = State(initialValue: InsightIndexer(store: store, primary: entityExtractor))
         _embeddingIndexer = State(initialValue: EmbeddingIndexer(store: store, embedder: embedder))
         _recall = State(initialValue: RecallModel(store: store, embedder: embedder))
+        _ask = State(initialValue: AskJournalModel(provider: questionProvider))
+    }
+
+    /// Asking the entries is part of the paid understanding layer, like the mind
+    /// map: the retrieved entries stay readable underneath either way.
+    private func askEntries() {
+        if paywall.isInsightLocked {
+            isShowingPaywall = true
+            return
+        }
+        let question = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidates = searchResults ?? []
+        Task { await ask.ask(question, candidates: candidates) }
     }
 
     /// Capture is free forever (the inverted paywall): a journal must never
@@ -438,6 +457,14 @@ struct RootView: View {
                         if let echo, searchResults == nil {
                             echoCard(echo)
                         }
+                        if searchResults != nil, QuestionDetector.isQuestion(searchText) {
+                            AskJournalCard(
+                                model: ask,
+                                onAsk: askEntries,
+                                onOpen: { selection = .entry($0) },
+                                onClear: { ask.reset() }
+                            )
+                        }
                         ForEach(displayedEntries) { entry in
                             Button {
                                 selection = .entry(entry)
@@ -459,6 +486,9 @@ struct RootView: View {
             }
         }
         .task(id: searchText) {
+            // A new query is a new question: an old answer must never sit above
+            // results it was not drawn from.
+            ask.reset()
             let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !query.isEmpty else {
                 searchResults = nil

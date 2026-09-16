@@ -12,12 +12,17 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
     private let reportedAvailability: TranscriptionAvailability
     private var reportedReadiness: TranscriptionAssetReadiness
     private var continuation: AsyncThrowingStream<TranscriptSegment, Error>.Continuation?
+    private var interruptionStream: AsyncStream<CaptureInterruption>?
+    private var interruptionContinuation: AsyncStream<CaptureInterruption>.Continuation?
 
     /// Test inspection: whether the recording path was ever entered, and whether
     /// the model was explicitly prepared. Lets tests prove recording never starts
     /// (nor downloads) until assets are installed.
     public private(set) var didStart = false
     public private(set) var didPrepare = false
+    /// Test inspection: how many times capture was (re)started — a resumed
+    /// recording after an interruption counts again.
+    public private(set) var startCount = 0
     /// Test inspection: the last vocabulary handed over for recognition biasing.
     public private(set) var receivedVocabulary: [String]?
 
@@ -52,6 +57,13 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
     public func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error> {
         guard reportedAvailability.isAvailable else { throw TranscriptionError.notAvailable }
         didStart = true
+        startCount += 1
+        // A fresh interruption channel per recording, created before `start()`
+        // returns so an event fired right after it is buffered, never lost.
+        interruptionContinuation?.finish()
+        let (interruptions, interruptionContinuation) = AsyncStream<CaptureInterruption>.makeStream()
+        interruptionStream = interruptions
+        self.interruptionContinuation = interruptionContinuation
         let (stream, continuation) = AsyncThrowingStream<TranscriptSegment, Error>.makeStream()
         self.continuation = continuation
         for text in volatileSegments {
@@ -68,5 +80,21 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
 
     public func setContextualVocabulary(_ terms: [String]) async {
         receivedVocabulary = terms
+    }
+
+    /// The channel opened by the most recent `start()`; finished at once if
+    /// nothing is recording.
+    public func interruptions() async -> AsyncStream<CaptureInterruption> {
+        interruptionStream ?? AsyncStream { $0.finish() }
+    }
+
+    /// Test control: the system took the microphone (a call, a timer, Siri).
+    public func simulateInterruptionBegan() {
+        interruptionContinuation?.yield(.began)
+    }
+
+    /// Test control: the interruption ended, with the system's recommendation.
+    public func simulateInterruptionEnded(shouldResume: Bool) {
+        interruptionContinuation?.yield(.ended(shouldResume: shouldResume))
     }
 }

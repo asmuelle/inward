@@ -9,7 +9,7 @@ public enum TokenBudgeter {
 
     public static func estimateTokens(_ text: String) -> Int {
         guard !text.isEmpty else { return 0 }
-        return max(1, Int((Double(text.count) / Double(charactersPerToken)).rounded(.up)))
+        return estimateTokens(text, charactersPerToken: charactersPerToken)
     }
 
     /// Splits text into chunks that each fit `maxTokens`. Content is preserved:

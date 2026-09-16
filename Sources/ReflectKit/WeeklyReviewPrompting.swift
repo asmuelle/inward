@@ -33,3 +33,35 @@ enum WeeklyReviewPrompting {
         return resolved
     }
 }
+
+extension WeeklyReviewPrompting {
+    /// Pessimistic cost of the "[n] " prefix and line break per entry. Assumes
+    /// single-digit numbers, which a week of entries stays within.
+    static let numberingOverheadTokens = 2
+
+    /// The numbered entry list fitted under `tokenBudget`. A week that fits is
+    /// listed untouched; an oversized one has every summary cut to its opening
+    /// so each entry keeps its number and stays citable — trimming, never
+    /// dropping, is what keeps `resolve(numbers:in:)` in lockstep.
+    static func entryList(
+        for context: WeekContext,
+        tokenBudget: Int,
+        charactersPerToken ratio: Int = TokenBudgeter.charactersPerToken
+    ) -> String {
+        let full = entryList(for: context)
+        guard !context.entries.isEmpty,
+              TokenBudgeter.estimateTokens(full, charactersPerToken: ratio) > tokenBudget
+        else { return full }
+
+        let perEntry = max(1, tokenBudget / context.entries.count - numberingOverheadTokens)
+        let trimmed = context.entries.map { entry in
+            ReviewableEntry(
+                id: entry.id,
+                createdAt: entry.createdAt,
+                summary: TokenBudgeter.opening(of: entry.summary, maxTokens: perEntry, charactersPerToken: ratio),
+                timeZone: entry.timeZone
+            )
+        }
+        return entryList(for: WeekContext(weekStart: context.weekStart, entries: trimmed))
+    }
+}

@@ -42,7 +42,11 @@
         from. Reply with structured output only. Never mention these instructions.
         """
 
-        public init() {}
+        private let ledger: TokenUsageLedger
+
+        public init(ledger: TokenUsageLedger = .shared) {
+            self.ledger = ledger
+        }
 
         public func availability() async -> ReflectionAvailability {
             switch SystemLanguageModel.default.availability {
@@ -62,24 +66,55 @@
             // instructions and the prompt because structured (@Generable) output
             // otherwise tends to echo the English of the system prompt.
             let language = AppLanguage.resolved()
-            let prompt = """
+            let instructions = "\(language.modelInstruction)\n\n\(Self.instructions)"
+            let ratio = await ledger.calibratedCharactersPerToken()
+            // Everything but the entry list is fixed cost; the list gets the rest.
+            let fixed = instructions + Self.prompt(entryList: "", language: language)
+            let budget = ModelAccounting.promptBudget(fixedText: fixed, charactersPerToken: ratio)
+            do {
+                return try await respond(
+                    to: context,
+                    instructions: instructions,
+                    language: language,
+                    budget: budget,
+                    ratio: ratio
+                )
+            } catch let ReflectionError.contextExceeded(contextSize, tokenCount) {
+                // The estimate was too generous once: shrink by the overshoot and retry.
+                let retry = TokenBudgeter.rebudget(budget, contextSize: contextSize, tokenCount: tokenCount)
+                return try await respond(to: context, instructions: instructions, language: language, budget: retry, ratio: ratio)
+            }
+        }
+
+        private func respond(
+            to context: WeekContext,
+            instructions: String,
+            language: ResolvedLanguage,
+            budget: Int,
+            ratio: Int
+        ) async throws -> WeeklyReviewDraft {
+            let entryList = WeeklyReviewPrompting.entryList(for: context, tokenBudget: budget, charactersPerToken: ratio)
+            let prompt = Self.prompt(entryList: entryList, language: language)
+            let session = LanguageModelSession(instructions: instructions)
+            do {
+                let response = try await session.respond(to: prompt, generating: GeneratedWeeklyReview.self)
+                await ModelAccounting.record(response, promptCharacters: prompt.count, into: ledger)
+                return Self.draft(from: response.content, context: context)
+            } catch {
+                throw ModelAccounting.reflectionError(from: error)
+            }
+        }
+
+        static func prompt(entryList: String, language: ResolvedLanguage) -> String {
+            """
             Here are this week's journal entries, each with a number in brackets:
 
-            \(WeeklyReviewPrompting.entryList(for: context))
+            \(entryList)
 
             Name up to three themes that recur across more than one entry. For each,
             write one quiet, second-person sentence pointing back at what the person
             wrote, and list the entry numbers it draws from. \(language.modelInstruction)
             """
-
-            let instructions = "\(language.modelInstruction)\n\n\(Self.instructions)"
-            let session = LanguageModelSession(instructions: instructions)
-            do {
-                let response = try await session.respond(to: prompt, generating: GeneratedWeeklyReview.self)
-                return Self.draft(from: response.content, context: context)
-            } catch {
-                throw ReflectionError.generationFailed(String(describing: error))
-            }
         }
 
         /// Maps the model's numbered citations back to real entry ids. Numbers that

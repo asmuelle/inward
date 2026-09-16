@@ -52,6 +52,12 @@ public enum Copy {
     public static let voicePrepareAction = Localized.t("voicePrepareAction", "Bring voice onto this phone")
     public static let voicePreparing = Localized.t("voicePreparing", "Bringing voice onto this phone…")
 
+    // Interrupted mid-recording (a call, a timer, another app took the mic).
+    public static let interruptedTitle = Localized.t("interruptedTitle", "Something else took the microphone for a moment.")
+    public static let interruptedEmpty = Localized.t("interruptedEmpty", "Nothing was said yet.")
+    public static let interruptedContinue = Localized.t("interruptedContinue", "Keep going")
+    public static let interruptedKeep = Localized.t("interruptedKeep", "Keep what's here")
+
     // MARK: Spoken summary confirm loop
 
     /// Shown while the recap is being formed and read aloud.

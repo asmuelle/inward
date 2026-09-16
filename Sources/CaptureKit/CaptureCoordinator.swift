@@ -14,6 +14,10 @@ public enum CaptureFailure: Sendable, Equatable {
 public enum CaptureState: Sendable, Equatable {
     case idle
     case recording(liveTranscript: String)
+    /// Something else took the microphone mid-recording. The words so far are
+    /// parked here — never dropped — until the system says resume, the writer
+    /// taps continue, or they keep what they have.
+    case interrupted(draft: String)
     /// Generating and speaking the spoken recap — transient, shows a spinner.
     case summarizing(draft: String)
     /// Recap spoken; awaiting Keep / Add more / Discard.
@@ -48,6 +52,10 @@ public final class CaptureCoordinator {
 
     private var accumulator = TranscriptAccumulator()
     private var streamTask: Task<Void, Never>?
+    private var interruptionTask: Task<Void, Never>?
+    /// Closes the window in which a tap on "Keep going" and a system-driven
+    /// resume could both restart the engine for the same interruption.
+    private var isResuming = false
     private var recordingStartedAt: Date?
     private var rawTranscript: String = ""
     private var clarificationRounds = 0
@@ -105,6 +113,7 @@ public final class CaptureCoordinator {
             streamTask = Task { [weak self] in
                 await self?.consume(stream)
             }
+            observeInterruptions(on: engine)
         } catch {
             state = .failed(.captureFailed)
         }
@@ -131,12 +140,29 @@ public final class CaptureCoordinator {
     }
 
     public func stopRecording() async {
-        guard case .recording = state, let engine else { return }
-        await engine.stop()
-        await streamTask?.value
-        streamTask = nil
-        rawTranscript = accumulator.displayText
-        await presentRecap(draft: rawTranscript)
+        switch state {
+        case .recording:
+            // Unsubscribe first so an interruption landing while the engine
+            // drains cannot flip the state underneath the recap.
+            stopObservingInterruptions()
+            await stopEngine()
+            rawTranscript = accumulator.displayText
+            await presentRecap(draft: rawTranscript)
+        case let .interrupted(draft):
+            // The engine already stopped when the interruption began.
+            stopObservingInterruptions()
+            rawTranscript = draft
+            await presentRecap(draft: draft)
+        default:
+            return
+        }
+    }
+
+    /// "Keep going" from the interrupted screen: re-arm the mic and append to
+    /// the parked words, without waiting for the system's recommendation.
+    public func continueAfterInterruption() async {
+        guard case let .interrupted(draft) = state else { return }
+        await resumeRecording(appendingTo: draft)
     }
 
     public func updateDraft(_ text: String) {
@@ -203,6 +229,7 @@ public final class CaptureCoordinator {
     public func reset() {
         streamTask?.cancel()
         streamTask = nil
+        stopObservingInterruptions()
         accumulator = TranscriptAccumulator()
         rawTranscript = ""
         recordingStartedAt = nil
@@ -239,6 +266,9 @@ public final class CaptureCoordinator {
     /// with the prior draft so new speech appends to it. Never downloads — if the
     /// model isn't installed the draft is kept in the editor instead.
     private func resumeRecording(appendingTo draft: String) async {
+        guard !isResuming else { return }
+        isResuming = true
+        defer { isResuming = false }
         guard let engine else {
             state = .reviewing(draft: draft)
             return
@@ -254,9 +284,59 @@ public final class CaptureCoordinator {
             streamTask = Task { [weak self] in
                 await self?.consume(stream)
             }
+            // Every start() opens a new interruption channel; subscribe to it even
+            // when this resume was itself driven by the previous channel.
+            observeInterruptions(on: engine)
         } catch {
             state = .reviewing(draft: draft)
         }
+    }
+
+    // MARK: - Interruptions
+
+    /// Subscribes to the channel the engine opened in its latest `start()`. The
+    /// previous task is cancelled, which is safe even when this is called from
+    /// inside that task's own event handler (a system-driven resume).
+    private func observeInterruptions(on engine: any TranscriptionEngine) {
+        interruptionTask?.cancel()
+        interruptionTask = Task { [weak self] in
+            for await event in await engine.interruptions() {
+                await self?.handle(event)
+            }
+        }
+    }
+
+    private func stopObservingInterruptions() {
+        interruptionTask?.cancel()
+        interruptionTask = nil
+    }
+
+    /// The interruption state machine. `.began` while recording parks the words
+    /// so far; `.ended` while parked either re-arms the mic (system says resume)
+    /// or hands the draft to the editor. Anything else is noise and ignored.
+    private func handle(_ event: CaptureInterruption) async {
+        switch (event, state) {
+        case (.began, .recording):
+            await stopEngine()
+            state = .interrupted(draft: accumulator.displayText)
+        case let (.ended(shouldResume), .interrupted(draft)):
+            if shouldResume {
+                await resumeRecording(appendingTo: draft)
+            } else {
+                stopObservingInterruptions()
+                state = .reviewing(draft: draft)
+            }
+        default:
+            break
+        }
+    }
+
+    /// Stops capture and drains the segment stream so the final words land in
+    /// the accumulator before anyone reads it.
+    private func stopEngine() async {
+        await engine?.stop()
+        await streamTask?.value
+        streamTask = nil
     }
 
     private func commit(draft: String) async {

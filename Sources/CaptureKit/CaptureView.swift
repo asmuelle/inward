@@ -43,6 +43,8 @@
                 recordStage(isRecording: false, transcript: "")
             case let .recording(liveTranscript):
                 recordStage(isRecording: true, transcript: liveTranscript)
+            case let .interrupted(draft):
+                interruptedStage(draft: draft)
             case let .reviewing(draft):
                 TranscriptEditorView(
                     draft: draft,
@@ -127,6 +129,34 @@
                     .font(.lamplight(.caption))
                     .foregroundStyle(Color.inwardSage)
             }
+        }
+
+        /// Something else took the microphone. The words so far stay on screen;
+        /// the writer carries on or keeps what is there — nothing is lost either way.
+        private func interruptedStage(draft: String) -> some View {
+            VStack(spacing: Lamplight.Spacing.section) {
+                Text(draft.isEmpty ? Copy.interruptedEmpty : draft)
+                    .font(.lamplight(.entryProse))
+                    .foregroundStyle(draft.isEmpty ? Color.inwardSage : Color.inwardInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+                VStack(spacing: Lamplight.Spacing.block) {
+                    Text(Copy.interruptedTitle)
+                        .font(.lamplight(.caption))
+                        .foregroundStyle(Color.inwardSage)
+                    Button(Copy.interruptedContinue) {
+                        Task { await coordinator.continueAfterInterruption() }
+                    }
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardClay)
+                    Button(Copy.interruptedKeep) {
+                        Task { await coordinator.stopRecording() }
+                    }
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardInk)
+                }
+            }
+            .multilineTextAlignment(.center)
         }
 
         /// Transient spinner while the recap is formed and read aloud.

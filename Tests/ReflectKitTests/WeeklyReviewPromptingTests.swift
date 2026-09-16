@@ -53,3 +53,60 @@ struct WeeklyReviewPromptingTests {
         #expect(WeeklyReviewPrompting.resolve(numbers: [], in: entries).isEmpty)
     }
 }
+
+@Suite("WeeklyReviewPrompting — fitting the week under a token budget")
+struct WeeklyReviewBudgetingTests {
+    private func context(_ summaries: [String]) -> WeekContext {
+        let entries = summaries.enumerated().map { offset, summary in
+            ReviewableEntry(
+                id: UUID(uuidString: "00000000-0000-0000-0000-0000000000\(String(format: "%02X", offset + 1))")!,
+                createdAt: Date(timeIntervalSince1970: 0),
+                summary: summary
+            )
+        }
+        return WeekContext(weekStart: Date(timeIntervalSince1970: 0), entries: entries)
+    }
+
+    @Test("a week that already fits is listed untouched")
+    func fittingWeekUnchanged() {
+        let week = context(["Garden mornings.", "Quiet evening."])
+
+        let list = WeeklyReviewPrompting.entryList(for: week, tokenBudget: 1000)
+
+        #expect(list == WeeklyReviewPrompting.entryList(for: week))
+    }
+
+    @Test("an oversized week trims every summary but keeps every entry and its number")
+    func oversizedWeekTrimsPerEntry() {
+        // Arrange — three entries, each ~150 tokens, against a 120-token budget
+        let long = Array(repeating: "The kitchen still smelled like cardamom after everyone left.", count: 10)
+            .joined(separator: " ")
+        let week = context([long, long, long])
+
+        // Act
+        let list = WeeklyReviewPrompting.entryList(for: week, tokenBudget: 120)
+
+        // Assert
+        let lines = list.split(separator: "\n").map(String.init)
+        #expect(lines.count == 3)
+        #expect(lines[0].hasPrefix("[1] "))
+        #expect(lines[1].hasPrefix("[2] "))
+        #expect(lines[2].hasPrefix("[3] "))
+        #expect(TokenBudgeter.estimateTokens(list) <= 120)
+        for line in lines {
+            #expect(!line.hasSuffix("[1] ") && line.count > 4, "no entry may be trimmed to nothing")
+            #expect(long.hasPrefix(String(line.dropFirst(4))), "trimming keeps the opening of the summary")
+        }
+    }
+
+    @Test("a tiny budget still leaves at least one word per entry")
+    func tinyBudgetKeepsSomething() {
+        let week = context(["Garden mornings again and again.", "Rushed mornings."])
+
+        let list = WeeklyReviewPrompting.entryList(for: week, tokenBudget: 1)
+
+        let lines = list.split(separator: "\n")
+        #expect(lines.count == 2)
+        #expect(lines.allSatisfy { $0.count > 4 })
+    }
+}

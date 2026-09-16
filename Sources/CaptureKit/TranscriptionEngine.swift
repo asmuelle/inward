@@ -81,6 +81,21 @@ public protocol TranscriptionEngine: Sendable {
     /// recognition on the next `start()`. Held in memory only, persisted nowhere
     /// new — the personalization corpus is already in the encrypted store.
     func setContextualVocabulary(_ terms: [String]) async
+
+    /// System audio interruptions for the recording in progress — a call, a
+    /// timer, another app taking the microphone. The coordinator parks the words
+    /// so far on `.began` and re-arms on `.ended(shouldResume: true)`. Engines
+    /// without an audio session return a stream that finishes at once.
+    func interruptions() async -> AsyncStream<CaptureInterruption>
+}
+
+/// What the audio system reports about a recording it took the microphone from.
+public enum CaptureInterruption: Sendable, Equatable {
+    /// Another audio session took over; nothing more will be captured.
+    case began
+    /// The interruption is over. `shouldResume` is the system's recommendation
+    /// (iOS 27 resumption context; the legacy `.shouldResume` option before).
+    case ended(shouldResume: Bool)
 }
 
 public extension TranscriptionEngine {
@@ -95,6 +110,11 @@ public extension TranscriptionEngine {
 
     /// No-op for engines without contextual-string support.
     func setContextualVocabulary(_ terms: [String]) async {}
+
+    /// Engines with no audio session are never interrupted.
+    func interruptions() async -> AsyncStream<CaptureInterruption> {
+        AsyncStream { $0.finish() }
+    }
 }
 
 public enum TranscriptionEngineKind: String, Sendable {

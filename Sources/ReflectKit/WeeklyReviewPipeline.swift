@@ -98,7 +98,7 @@ public struct WeeklyReviewPipeline: Sendable {
                 lhs.count != rhs.count ? lhs.count > rhs.count : lhs.theme < rhs.theme
             }
             .prefix(maxThemes)
-            .map { $0 }
+            .map(\.self)
     }
 
     /// Distinct lowercased words of a summary, long enough to carry meaning and not

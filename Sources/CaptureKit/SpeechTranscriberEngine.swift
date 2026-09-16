@@ -23,6 +23,9 @@
         /// The user's own proper nouns, applied as contextual strings on the next
         /// start. In actor memory only — never persisted, never leaves the device.
         private var contextualVocabulary: [String] = []
+        /// The interruption channel for the recording in progress (see `interruptions()`).
+        private var interruptionStream: AsyncStream<CaptureInterruption>?
+        private var interruptionContinuation: AsyncStream<CaptureInterruption>.Continuation?
 
         /// The language to transcribe in, resolved when a recording starts. Defaults
         /// to the app's chosen language (Settings → Language), which follows the
@@ -142,6 +145,12 @@
             self.outputContinuation = outputContinuation
 
             try configureAudioSession()
+            // Finish the previous channel ourselves so its observers are removed
+            // even if no consumer ever cancelled it. Not done in stop(): the
+            // resumption recommendation arrives after an interruption has
+            // already stopped the engine, and must still get through.
+            interruptionContinuation?.finish()
+            (interruptionStream, interruptionContinuation) = Self.makeInterruptionStream()
             try await installTap(continuation: inputContinuation, analyzerFormat: analyzerFormat)
             try await analyzer.start(inputSequence: inputStream)
 
@@ -167,6 +176,32 @@
 
         public func setContextualVocabulary(_ terms: [String]) async {
             contextualVocabulary = terms
+        }
+
+        /// The interruption channel opened by the latest `start()` — opened there,
+        /// not here, so an interruption in the instant after start is buffered
+        /// rather than missed. Finished at once when nothing is recording.
+        public func interruptions() async -> AsyncStream<CaptureInterruption> {
+            interruptionStream ?? AsyncStream { $0.finish() }
+        }
+
+        /// Observes audio-session interruptions for as long as the stream is
+        /// consumed. On iOS 27 the typed `didBecomeInactive` and
+        /// `resumptionRecommendation` messages say why the session stopped and
+        /// whether the system advises resuming; iOS 26 falls back to the classic
+        /// interruption notification. macOS has no audio session to interrupt.
+        private static func makeInterruptionStream() -> (
+            AsyncStream<CaptureInterruption>,
+            AsyncStream<CaptureInterruption>.Continuation
+        ) {
+            let (stream, continuation) = AsyncStream<CaptureInterruption>.makeStream()
+            #if os(iOS)
+                let observer = AudioSessionInterruptionObserver(continuation: continuation)
+                continuation.onTermination = { _ in observer.cancel() }
+            #else
+                continuation.finish()
+            #endif
+            return (stream, continuation)
         }
 
         // MARK: - Internals
@@ -287,6 +322,83 @@
             format.channelCount > 0 && format.sampleRate > 0
         }
     }
+
+    #if os(iOS)
+        /// Forwards audio-session interruptions into a `CaptureInterruption`
+        /// stream. Registration happens in `init`; `cancel()` removes every
+        /// observer. Tokens are immutable after init and Foundation's removal is
+        /// thread-safe, which is what justifies `@unchecked Sendable`.
+        @available(iOS 26.0, *)
+        private final class AudioSessionInterruptionObserver: @unchecked Sendable {
+            private let modernTokens: [NotificationCenter.ObservationToken]
+            private let legacyToken: (any NSObjectProtocol)?
+
+            init(continuation: AsyncStream<CaptureInterruption>.Continuation) {
+                let session = AVAudioSession.sharedInstance()
+                if #available(iOS 27.0, *) {
+                    modernTokens = Self.observeModern(session, continuation: continuation)
+                    legacyToken = nil
+                } else {
+                    modernTokens = []
+                    legacyToken = Self.observeLegacy(session, continuation: continuation)
+                }
+            }
+
+            func cancel() {
+                for token in modernTokens {
+                    NotificationCenter.default.removeObserver(token)
+                }
+                if let legacyToken {
+                    NotificationCenter.default.removeObserver(legacyToken)
+                }
+            }
+
+            /// iOS 27: only a *system* deactivation is an interruption — the app's
+            /// own `setActive(false)` is not — and the resumption message says
+            /// outright whether resuming is advised.
+            @available(iOS 27.0, *)
+            private static func observeModern(
+                _ session: AVAudioSession,
+                continuation: AsyncStream<CaptureInterruption>.Continuation
+            ) -> [NotificationCenter.ObservationToken] {
+                let inactive = NotificationCenter.default.addObserver(of: session, for: .didBecomeInactive) { message in
+                    if case .systemInterruption = message.deactivationResult {
+                        continuation.yield(.began)
+                    }
+                }
+                let resumption = NotificationCenter.default.addObserver(of: session, for: .resumptionRecommendation) { message in
+                    continuation.yield(.ended(shouldResume: message.recommendation == .shouldResume))
+                }
+                return [inactive, resumption]
+            }
+
+            /// iOS 26: the classic began/ended notification with its `.shouldResume` option.
+            private static func observeLegacy(
+                _ session: AVAudioSession,
+                continuation: AsyncStream<CaptureInterruption>.Continuation
+            ) -> any NSObjectProtocol {
+                NotificationCenter.default.addObserver(
+                    forName: AVAudioSession.interruptionNotification,
+                    object: session,
+                    queue: nil
+                ) { notification in
+                    guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                          let type = AVAudioSession.InterruptionType(rawValue: raw)
+                    else { return }
+                    switch type {
+                    case .began:
+                        continuation.yield(.began)
+                    case .ended:
+                        let optionsRaw = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                        let options = AVAudioSession.InterruptionOptions(rawValue: optionsRaw)
+                        continuation.yield(.ended(shouldResume: options.contains(.shouldResume)))
+                    @unknown default:
+                        break
+                    }
+                }
+            }
+        }
+    #endif
 
     /// Resamples microphone buffers into the analyzer's required format.
     /// SpeechAnalyzer traps on mismatched input, so every buffer is converted to

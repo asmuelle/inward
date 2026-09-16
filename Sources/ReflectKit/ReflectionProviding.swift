@@ -20,6 +20,10 @@ public enum ReflectionAvailability: Sendable, Equatable {
 public enum ReflectionError: Error, Equatable {
     case modelUnavailable
     case generationFailed(String)
+    /// The prompt did not fit the model's context. Carries what the model
+    /// reported so the caller can shrink the budget by the actual overshoot;
+    /// `tokenCount` is 0 when the system did not say how far over it was.
+    case contextExceeded(contextSize: Int, tokenCount: Int)
 }
 
 /// Boundary for on-device generation. The shipped implementation wraps Apple's

@@ -162,13 +162,13 @@ struct CaptureCoordinatorTests {
         #expect(coordinator.state == .failed(.voiceUnavailable))
     }
 
-    @Test("a downloadable model routes to preparation and never starts (no silent download)")
-    func downloadableModelRoutesToPreparation() async {
-        // Arrange — supported and permitted, but the model isn't installed yet.
+    @Test("a missing local model degrades to text without offering a download")
+    func missingLocalModelFailsSoft() async {
+        // Arrange — supported and permitted, but the model isn't installed locally.
         let engine = MockTranscriptionEngine(
             volatileSegments: ["x"],
             finalTranscript: "x",
-            readiness: .downloadable
+            readiness: .missingAsset
         )
         let coordinator = CaptureCoordinator(engine: engine, store: temporaryStore(), localeIdentifier: "en_US")
 
@@ -176,36 +176,8 @@ struct CaptureCoordinatorTests {
         await coordinator.startRecording()
 
         // Assert — capture never began and nothing was fetched mid-recording.
-        #expect(coordinator.state == .failed(.voiceNeedsPreparation))
+        #expect(coordinator.state == .failed(.voiceAssetsMissing))
         #expect(await engine.didStart == false)
-        #expect(await engine.didPrepare == false)
-    }
-
-    @Test("prepareVoice installs the model, then recording proceeds")
-    func prepareVoiceThenRecord() async {
-        // Arrange
-        let engine = MockTranscriptionEngine(
-            volatileSegments: ["a"],
-            finalTranscript: "a settled thought",
-            readiness: .downloadable
-        )
-        let coordinator = CaptureCoordinator(engine: engine, store: temporaryStore(), localeIdentifier: "en_US")
-
-        // Act — the one consented download returns us to idle…
-        let ready = await coordinator.prepareVoice()
-
-        // Assert
-        #expect(ready)
-        #expect(await engine.didPrepare)
-        #expect(coordinator.state == .idle)
-
-        // …and recording then starts normally.
-        await coordinator.startRecording()
-        #expect(await engine.didStart)
-        guard case .recording = coordinator.state else {
-            Issue.record("expected recording state, got \(coordinator.state)")
-            return
-        }
     }
 
     @Test("blank written entries are ignored, state stays idle")

@@ -20,6 +20,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
     var updatedAt: Date?
     var locale: String
     var timeZone: String?
+    var insightsExtractedAt: Date?
 
     init(_ entry: Entry) {
         id = entry.id.uuidString
@@ -34,6 +35,7 @@ struct EntryRecord: Codable, FetchableRecord, PersistableRecord {
         updatedAt = entry.updatedAt
         locale = entry.locale
         timeZone = entry.timeZone
+        insightsExtractedAt = nil
     }
 
     /// Returns nil if the row is malformed (bad UUID or unknown source) so the

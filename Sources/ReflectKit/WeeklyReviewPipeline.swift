@@ -54,7 +54,7 @@ public struct WeeklyReviewPipeline: Sendable {
             return .synthesized(draft)
         }
 
-        let themes = Self.recurringThemes(in: context)
+        let themes = Self.recurringThemes(in: context, languageCode: AppLanguage.resolved().code)
         return themes.isEmpty ? .unavailable : .themesOnly(themes)
     }
 
@@ -83,10 +83,15 @@ public struct WeeklyReviewPipeline: Sendable {
     ///
     /// Public so a surface can show recurring themes even when the model is
     /// unavailable on the device (model-optional journaling, invariant #9).
-    public static func recurringThemes(in context: WeekContext) -> [ThemeCount] {
+    public static func recurringThemes(
+        in context: WeekContext,
+        languageCode: String = AppLanguage.resolved().code
+    ) -> [ThemeCount] {
         var entriesByWord: [String: [UUID]] = [:]
         for entry in context.entries {
-            for word in tokens(in: entry.summary) where BannedTerms.violations(in: word).isEmpty {
+            for word in tokens(in: entry.summary, languageCode: languageCode)
+                where BannedTerms.violations(in: word).isEmpty
+            {
                 entriesByWord[word, default: []].append(entry.id)
             }
         }
@@ -104,12 +109,13 @@ public struct WeeklyReviewPipeline: Sendable {
     /// Distinct lowercased words of a summary, long enough to carry meaning and not
     /// a generic filler. Distinct-per-entry so one entry repeating a word counts
     /// once toward frequency.
-    private static func tokens(in text: String) -> Set<String> {
-        Set(
+    private static func tokens(in text: String, languageCode: String) -> Set<String> {
+        let ignored = stopwords.union(localizedStopwords[languageCode, default: []])
+        return Set(
             text.lowercased()
                 .split(whereSeparator: { !$0.isLetter })
                 .map(String.init)
-                .filter { $0.count >= minThemeWordLength && !stopwords.contains($0) }
+                .filter { $0.count >= minThemeWordLength && !ignored.contains($0) }
         )
     }
 
@@ -132,5 +138,17 @@ public struct WeeklyReviewPipeline: Sendable {
         "usually", "very", "what", "whatever", "when", "where", "whether", "which",
         "while", "whole", "will", "with", "within", "without", "would", "yeah",
         "yesterday", "your", "yours", "yourself",
+    ]
+
+    static let localizedStopwords: [String: Set<String>] = [
+        "de": ["heute", "immer", "wieder", "dabei", "diese", "dieser", "meine", "meinen", "einen"],
+        "fr": ["aujourd", "toujours", "encore", "cette", "comme", "alors", "avoir"],
+        "it": ["oggi", "sempre", "ancora", "questa", "quello", "avere", "molto"],
+        "pt": ["hoje", "sempre", "ainda", "outra", "muito", "sobre", "quando"],
+        "es": ["hoy", "siempre", "otra", "mucho", "sobre", "cuando", "todavía"],
+        "nb": ["alltid", "igjen", "dette", "denne", "veldig", "etter", "under"],
+        "sv": ["alltid", "igen", "denna", "detta", "mycket", "efter", "under"],
+        "da": ["altid", "igen", "denne", "dette", "meget", "efter", "under"],
+        "ru": ["сегодня", "всегда", "снова", "очень", "когда", "после", "перед"],
     ]
 }

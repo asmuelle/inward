@@ -76,7 +76,7 @@ None of this is Simulator-testable (audio is device-only). Work through
 
 **Guideline-sensitive surfaces (what a reviewer will poke):**
 - [ ] Paywall with the **sandbox account**: products load (they'll 404 until
-      Phase 3 IAPs exist — retest after), 7-day trial shown, purchase, restore
+      Phase 3 IAPs exist — retest after), eligible 7-day offer shown, purchase, restore
       on a second install, lifetime purchase path.
 - [ ] Crisis gate: a test phrase triggers quiet save + resources in weekly
       review; spoken summary is suppressed (`.suppressed`), never a breezy
@@ -111,8 +111,7 @@ turned into a code ticket.
       paywall strings (money), onboarding, spoken-summary confirm loop, the
       new legal-link labels.
 - [ ] Proofread `fastlane/metadata/en-US/*` one final time; confirm the
-      description matches the *shipped* paywall model (capture free, insights
-      gated) — it was written before the inversion.
+      description matches the shipped three-entry sample and StoreKit-owned trial.
 
 **Exit criteria:** a named human has signed off on crisis copy per language
 (or the language ships English-fallback for crisis surfaces — decide).

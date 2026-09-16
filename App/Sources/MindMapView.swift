@@ -65,6 +65,7 @@ struct MindMapView: View {
     @State private var model: MindMapModel
     @State private var presentedNode: EntityGraph.Node?
     @State private var mode: MindMapMode = .map
+    @State private var isSharing = false
     private let store: any JournalStoring
 
     init(store: any JournalStoring) {
@@ -98,6 +99,7 @@ struct MindMapView: View {
         .sheet(item: $presentedNode) { node in
             NodeEntriesSheet(node: node, model: model, store: store)
         }
+        .modifier(ShareMapToolbar(graph: model.graph, isSharing: $isSharing))
     }
 
     private var searchField: some View {
@@ -353,6 +355,24 @@ private struct NodeEntriesSheet: View {
             .inwardInlineTitle()
             .navigationDestination(for: Entry.self) { entry in
                 EntryDetailView(entry: entry, store: store)
+            }
+        }
+    }
+}
+
+/// The share affordance appears only once there is a map to picture. The card
+/// always draws the whole graph, not the filtered view — a shared picture of a
+/// search result would misrepresent the month.
+private struct ShareMapToolbar: ViewModifier {
+    let graph: EntityGraph
+    @Binding var isSharing: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if graph.isEmpty {
+            content
+        } else {
+            content.shareCardToolbar(isPresented: $isSharing) {
+                MindMapShareCard(graph: graph)
             }
         }
     }

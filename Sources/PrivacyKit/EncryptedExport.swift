@@ -26,7 +26,7 @@ public struct EncryptedArchive: Codable, Sendable, Equatable {
     /// Bounds on the archive-supplied iteration count. The floor keeps a tampered
     /// archive from weakening the work factor; the ceiling stops a malicious archive
     /// from pinning the CPU on `open` (a multi-billion-iteration denial of service).
-    static let minIterations = 1_000
+    static let minIterations = 1000
     static let maxIterations = 10_000_000
 }
 

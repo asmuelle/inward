@@ -47,8 +47,13 @@ public struct MockBiometricAuthenticator: BiometricAuthenticating {
         self.outcome = outcome
     }
 
-    public func availability() -> BiometricAvailability { availabilityValue }
-    public func authenticate(reason _: String) async -> AuthOutcome { outcome }
+    public func availability() -> BiometricAvailability {
+        availabilityValue
+    }
+
+    public func authenticate(reason _: String) async -> AuthOutcome {
+        outcome
+    }
 }
 
 public enum LockState: Sendable, Equatable {
@@ -67,18 +72,19 @@ public actor BiometricLockController {
 
     public init(authenticator: any BiometricAuthenticating, userEnabled: Bool) {
         self.authenticator = authenticator
-        let deviceCanAuthenticate: Bool
-        if case .available = authenticator.availability() {
-            deviceCanAuthenticate = true
+        let deviceCanAuthenticate = if case .available = authenticator.availability() {
+            true
         } else {
-            deviceCanAuthenticate = false
+            false
         }
         lockActive = userEnabled && deviceCanAuthenticate
         state = lockActive ? .locked : .unlocked
     }
 
     /// Whether a credential prompt will actually gate this session.
-    public var isLockActive: Bool { lockActive }
+    public var isLockActive: Bool {
+        lockActive
+    }
 
     /// Attempt to unlock. Only a successful authentication opens the lock; a
     /// failure, cancellation, or transient unavailability leaves it closed so the

@@ -1,7 +1,7 @@
 @testable import DesignSystem
 import Testing
 
-@Suite("Localized — the app can pin one language regardless of the device")
+@Suite("Localized — the app can pin one language regardless of the device", .serialized)
 struct LocalizedOverrideTests {
     /// Global override, so each test restores it rather than leaking a language.
     private func withOverride(_ code: String?, _ body: () -> Void) {

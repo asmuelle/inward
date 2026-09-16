@@ -35,7 +35,7 @@ final class ImportModel {
         phase = .working
         do {
             let data = try readSecurityScoped(url)
-            let payload = try JournalExporter.restore(from: data, passphrase: passphrase)
+            let payload = try await JournalExporter.restoreAsync(from: data, passphrase: passphrase)
             phase = try await .done(added: merge(payload))
         } catch ExportError.wrongPassphraseOrCorrupt {
             phase = .failed(Copy.importWrongPassphrase)

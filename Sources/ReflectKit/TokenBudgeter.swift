@@ -1,10 +1,13 @@
 import Foundation
+import SafetyKit
 
-/// Conservative token accounting for the 8K on-device context window. Estimation
+/// Conservative token accounting for the 4K on-device context window. Estimation
 /// is deliberately pessimistic (≈4 characters per token); chunking splits on
 /// sentence boundaries first, whitespace second, so no chunk exceeds the budget.
 public enum TokenBudgeter {
-    public static let contextWindow = 8192
+    public static let contextWindow = ModelPromptBudget.contextWindow
+    /// Leaves room for instructions, guided-generation schema, and output.
+    public static let defaultInputBudget = ModelPromptBudget.inputLimit
     static let charactersPerToken = 4
 
     public static func estimateTokens(_ text: String) -> Int {
@@ -35,6 +38,10 @@ public enum TokenBudgeter {
         }
         if !current.isEmpty { chunks.append(current) }
         return chunks
+    }
+
+    public static func fittingPrefix(_ text: String, maxTokens: Int = defaultInputBudget) -> String {
+        ModelPromptBudget.fittingPrefix(text, maxTokens: maxTokens)
     }
 
     private static func splitSentences(_ text: String) -> [String] {

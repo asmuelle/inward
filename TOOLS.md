@@ -24,7 +24,7 @@ By product invariant, Inward has **no external data APIs and no inference keys**
 | Dependency | Kind | Auth | Cost/limits | Notes |
 |---|---|---|---|---|
 | SpeechAnalyzer / SpeechTranscriber | iOS framework (on-device ASR) | none | free; on-device | Primary ASR; requires iOS 26+ |
-| FoundationModels (AFM 3 Core) | iOS framework (on-device LLM) | none | free; **8K context** — chunk + hierarchical summaries | `LanguageModelSession` + `@Generable`; feature-gate on availability |
+| FoundationModels (AFM 3 Core) | iOS framework (on-device LLM) | none | free; **4K published context** — reserve schema/output space and bound every input | `LanguageModelSession` + `@Generable`; feature-gate on device and language availability |
 | Core Spotlight + NLContextualEmbedding | iOS frameworks | none | free; on-device | Local index + embeddings for RAG |
 | StoreKit 2 | iOS framework | App Store Connect config | Apple's 15/30% cut | **The only permitted network traffic in the app** |
 | GRDB + SQLCipher | SPM packages | none | OSS | Encrypted local store |

@@ -52,6 +52,23 @@ struct WeeklyReviewPromptingTests {
     func emptyResolvesEmpty() {
         #expect(WeeklyReviewPrompting.resolve(numbers: [], in: entries).isEmpty)
     }
+
+    @Test("a large week is bounded before it reaches the model")
+    func boundedEntryList() {
+        let longEntries = (0 ..< 80).map { index in
+            ReviewableEntry(
+                id: UUID(),
+                createdAt: Date(timeIntervalSince1970: Double(index)),
+                summary: String(repeating: "a recurring detailed sentence ", count: 40)
+            )
+        }
+        let context = WeekContext(weekStart: Date(timeIntervalSince1970: 0), entries: longEntries)
+
+        let list = WeeklyReviewPrompting.entryList(for: context, tokenBudget: 500)
+
+        #expect(TokenBudgeter.estimateTokens(list) <= 500)
+        #expect(list.hasPrefix("[1]"))
+    }
 }
 
 @Suite("WeeklyReviewPrompting — fitting the week under a token budget")

@@ -27,7 +27,10 @@
         public init() {}
 
         public func availability() async -> CaptureSummaryAvailability {
-            switch SystemLanguageModel.default.availability {
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                return .unavailable(reason: "language not supported for generated insights")
+            }
+            return switch SystemLanguageModel.default.availability {
             case .available:
                 .available
             case let .unavailable(reason):
@@ -47,6 +50,9 @@
             guard case .available = SystemLanguageModel.default.availability else {
                 throw CaptureSummaryError.modelUnavailable
             }
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                throw CaptureSummaryError.modelUnavailable
+            }
             // Pin the reply to the writer's language, or the model answers in the
             // language of its English prompt — the German voice then reads an
             // English recap aloud. Resolved per call so a Settings change applies
@@ -54,7 +60,8 @@
             let localized = "\(AppLanguage.resolved().modelInstruction)\n\n\(instructions)"
             let session = LanguageModelSession(instructions: localized)
             do {
-                let response = try await session.respond(to: entryText)
+                let input = ModelPromptBudget.fittingPrefix(entryText)
+                let response = try await session.respond(to: input)
                 return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
             } catch {
                 throw CaptureSummaryError.generationFailed(String(describing: error))

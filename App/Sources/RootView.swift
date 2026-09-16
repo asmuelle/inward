@@ -15,6 +15,7 @@ import SwiftUI
 struct RootView: View {
     private let store: any JournalStoring
     private let engine: (any TranscriptionEngine)?
+    private let reflectionProvider: any ReflectionProviding
     private let reviewProvider: any WeeklyReviewProviding
     private let questionProvider: any JournalQuestionProviding
     /// Spoken-recap dependencies — present only when the platform supports them.
@@ -71,6 +72,7 @@ struct RootView: View {
     init(
         store: any JournalStoring,
         engine: (any TranscriptionEngine)?,
+        reflectionProvider: any ReflectionProviding,
         reviewProvider: any WeeklyReviewProviding,
         questionProvider: any JournalQuestionProviding,
         entityExtractor: any EntityExtracting,
@@ -78,11 +80,11 @@ struct RootView: View {
         summaryProvider: any CaptureSummaryProviding,
         synthesizer: (any SpeechSynthesisEngine)?,
         authenticator: any BiometricAuthenticating,
-        purchaseGateway: any PurchaseGateway,
-        trialStartedAt: Date
+        purchaseGateway: any PurchaseGateway
     ) {
         self.store = store
         self.engine = engine
+        self.reflectionProvider = reflectionProvider
         self.reviewProvider = reviewProvider
         self.questionProvider = questionProvider
         self.summaryProvider = summaryProvider
@@ -92,7 +94,7 @@ struct RootView: View {
             authenticator: authenticator,
             isEnabled: { UserDefaults.standard.bool(forKey: Prefs.lockEnabled) }
         ))
-        _paywall = State(initialValue: PaywallModel(gateway: purchaseGateway, trialStartedAt: trialStartedAt))
+        _paywall = State(initialValue: PaywallModel(gateway: purchaseGateway))
         _insightIndexer = State(initialValue: InsightIndexer(store: store, primary: entityExtractor))
         _embeddingIndexer = State(initialValue: EmbeddingIndexer(store: store, embedder: embedder))
         _recall = State(initialValue: RecallModel(store: store, embedder: embedder))
@@ -111,9 +113,9 @@ struct RootView: View {
         Task { await ask.ask(question, candidates: candidates) }
     }
 
-    /// Capture is free forever (the inverted paywall): a journal must never
-    /// lock people out of their own writing habit. What Pro gates is the
-    /// insight layer — see `beginMindMap` and the synthesis/suggestion gates.
+    /// Capture is never gated — no entitlement check here by design. The paid
+    /// tier begins where generated insight does (`beginMindMap`, the weekly
+    /// synthesis, tag suggestions, the spoken recap).
     private func beginCapture(autoStart: Bool = false) {
         autoStartCapture = autoStart
         isCapturing = true
@@ -182,11 +184,21 @@ struct RootView: View {
     /// Refresh the timeline after a new entry, then let the indexers pick it up.
     private func refreshAndIndex() {
         Task {
+            let previousCount = model.entries.count
             await model.refresh()
             refreshEcho()
             await insightIndexer.indexPending()
             await embeddingIndexer.indexPending()
             await recall.reload()
+            let reachedFirstLook = FreeSamplePolicy.shouldPresentFirstLook(
+                previousCount: previousCount,
+                currentCount: model.entries.count,
+                alreadyShown: UserDefaults.standard.bool(forKey: Prefs.hasShownFirstLook)
+            )
+            if paywall.isInsightLocked, reachedFirstLook {
+                UserDefaults.standard.set(true, forKey: Prefs.hasShownFirstLook)
+                selection = .weeklyReview
+            }
         }
     }
 
@@ -201,10 +213,16 @@ struct RootView: View {
             }
             .animation(.easeOut(duration: Lamplight.Motion.standard), value: lock.state)
             .inwardFullCover(isPresented: onboardingBinding) {
-                OnboardingView { hasOnboarded = true }
+                OnboardingView {
+                    hasOnboarded = true
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        beginCapture()
+                    }
+                }
             }
             .sheet(isPresented: $isShowingSettings) {
-                SettingsView(store: store)
+                SettingsView(store: store, engine: engine)
             }
             .task {
                 await lock.engage()
@@ -385,9 +403,17 @@ struct RootView: View {
     }
 
     private func entryDetail(_ entry: Entry) -> some View {
-        EntryDetailView(
+        let language = AppLanguage.resolved()
+        let provider: any ReflectionProviding = paywall.isInsightLocked
+            ? WithheldReflectionProvider()
+            : reflectionProvider
+        return EntryDetailView(
             entry: entry,
             store: store,
+            reflectionPipeline: ReflectionPipeline(
+                gate: CrisisGate(localizedFor: language.locale),
+                provider: provider
+            ),
             suggestionsEnabled: !paywall.isInsightLocked,
             onEdited: { _ in Task { await model.refresh() } },
             onRequestDelete: { deleteEntry($0) },
@@ -427,7 +453,21 @@ struct RootView: View {
             if !model.tags.isEmpty {
                 tagFilterBar
             }
-            if model.entries.isEmpty {
+            if model.loadFailed {
+                VStack(spacing: Lamplight.Spacing.block) {
+                    Spacer()
+                    Image(systemName: "lock.trianglebadge.exclamationmark")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(Color.inwardClay)
+                    Text(Copy.storageUnavailable)
+                        .font(.lamplight(.entryProse))
+                        .foregroundStyle(Color.inwardInk)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Lamplight.Spacing.stage)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if model.entries.isEmpty {
                 VStack(spacing: Lamplight.Spacing.block) {
                     Spacer()
                     Text(Copy.timelineEmpty)
@@ -613,11 +653,12 @@ struct RootView: View {
             .foregroundStyle(Color.inwardSage)
         }
         .padding(.bottom, Lamplight.Spacing.block)
+        .disabled(model.loadFailed)
     }
 
     private func makeCoordinator() -> CaptureCoordinator {
         // The spoken-recap loop engages only when the user opted in, the
-        // entitlement covers the insight layer (the inverted paywall), and the
+        // entitlement covers the insight layer, and the
         // platform supplied a synthesizer. Otherwise capture stays on the silent
         // read-it-back path — never a lock. The crisis gate is localized so
         // suppression matches the user's language.
@@ -647,6 +688,16 @@ struct RootView: View {
     private func isSelectedEntry(_ entry: Entry) -> Bool {
         if case let .entry(selected) = selection { return selected == entry }
         return false
+    }
+}
+
+private struct WithheldReflectionProvider: ReflectionProviding {
+    func availability() async -> ReflectionAvailability {
+        .unavailable(reason: "reflection requires entitlement")
+    }
+
+    func reflection(for _: String) async throws -> ReflectionPrompt {
+        throw ReflectionError.modelUnavailable
     }
 }
 
@@ -695,6 +746,7 @@ private struct UndoDeleteBar: View {
 final class TimelineModel {
     private(set) var entries: [Entry] = []
     private(set) var tags: [Tag] = []
+    private(set) var loadFailed = false
     private(set) var activeTag: Tag?
     private let store: any JournalStoring
 
@@ -704,6 +756,7 @@ final class TimelineModel {
 
     func refresh() async {
         do {
+            loadFailed = false
             tags = try await store.allTags()
             // A filter whose tag was pruned away (last entry removed/retagged)
             // silently falls back to the full timeline.
@@ -716,8 +769,7 @@ final class TimelineModel {
                 entries = try await store.allEntries()
             }
         } catch {
-            // Reading must never crash the shell; an empty timeline with the
-            // quiet empty-state line is the degraded surface.
+            loadFailed = true
             entries = []
             tags = []
         }

@@ -75,7 +75,12 @@ public final class SQLCipherJournalStore: JournalStoring {
             // last-edited timestamp. The raw transcript is provenance — untouched.
             record.summary = EntrySummary.make(from: textEdited)
             record.updatedAt = Date()
+            record.insightsExtractedAt = nil
             try record.update(db)
+            // Entities described the old text. Remove the links and re-queue this
+            // entry so the background indexer derives them from the edited words.
+            try EntryEntityRecord.filter(Column("entryId") == entryID.uuidString).deleteAll(db)
+            try Self.pruneOrphanEntities(db)
             // The embedding described the old text; drop it so the entry
             // re-enters the embedding work queue.
             try EmbeddingRecord.deleteOne(db, key: entryID.uuidString)

@@ -14,7 +14,9 @@ private actor CountingAuthenticator: BiometricAuthenticating {
         self.outcome = outcome
     }
 
-    nonisolated func availability() -> BiometricAvailability { availabilityValue }
+    nonisolated func availability() -> BiometricAvailability {
+        availabilityValue
+    }
 
     func authenticate(reason _: String) async -> AuthOutcome {
         attempts += 1

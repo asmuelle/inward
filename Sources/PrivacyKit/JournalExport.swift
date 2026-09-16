@@ -22,6 +22,26 @@ public struct ExportPayload: Codable, Sendable, Equatable {
 /// Drive — the user holds the only key. Export and restore are deliberately free of
 /// any device dependency, and reading/exporting is never paywalled (invariant #8).
 public enum JournalExporter {
+    /// Runs encoding, PBKDF2, and authenticated encryption away from the caller's
+    /// actor. UI models can await this without blocking interaction or animation.
+    public static func archiveDataAsync(
+        entries: [Entry],
+        transcriptions: [Transcription],
+        exportedAt: Date,
+        passphrase: String,
+        iterations: Int = PassphraseKey.defaultIterations
+    ) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            try archiveData(
+                entries: entries,
+                transcriptions: transcriptions,
+                exportedAt: exportedAt,
+                passphrase: passphrase,
+                iterations: iterations
+            )
+        }.value
+    }
+
     /// Produce the encrypted archive bytes to write to a `.inwardbackup` file.
     /// `exportedAt` is injected rather than read from the clock so the result is
     /// deterministic and testable.
@@ -57,6 +77,14 @@ public enum JournalExporter {
         } catch {
             throw ExportError.malformedArchive
         }
+    }
+
+    /// Runs archive decoding, PBKDF2, and authenticated decryption away from the
+    /// caller's actor for responsive import surfaces.
+    public static func restoreAsync(from data: Data, passphrase: String) async throws -> ExportPayload {
+        try await Task.detached(priority: .userInitiated) {
+            try restore(from: data, passphrase: passphrase)
+        }.value
     }
 
     // MARK: - Coding

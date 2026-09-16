@@ -22,7 +22,7 @@ struct WeeklyReviewModelTests {
 
     private func entry(daysBefore: Double, _ text: String) -> Entry {
         Entry(
-            createdAt: referenceDate.addingTimeInterval(-daysBefore * 86_400),
+            createdAt: referenceDate.addingTimeInterval(-daysBefore * 86400),
             source: .text,
             transcriptRaw: text,
             textEdited: text,
@@ -36,8 +36,8 @@ struct WeeklyReviewModelTests {
             entry(daysBefore: 1, "Garden mornings felt lighter than the rest of the day."),
             entry(daysBefore: 2, "Another garden afternoon; mornings still rushed though."),
         ]
-        let model = WeeklyReviewModel(
-            store: try await store(with: entries),
+        let model = try await WeeklyReviewModel(
+            store: store(with: entries),
             provider: MockWeeklyReviewProvider(),
             referenceDate: referenceDate
         )
@@ -64,8 +64,8 @@ struct WeeklyReviewModelTests {
             entry(daysBefore: 2, "Another garden, more mornings."),
             entry(daysBefore: 30, "Old deadline pressure from last month."),
         ]
-        let model = WeeklyReviewModel(
-            store: try await store(with: entries),
+        let model = try await WeeklyReviewModel(
+            store: store(with: entries),
             provider: MockWeeklyReviewProvider(),
             referenceDate: referenceDate
         )
@@ -77,8 +77,8 @@ struct WeeklyReviewModelTests {
 
     @Test("an empty week is a quiet, entry-free state")
     func emptyWeekIsQuiet() async throws {
-        let model = WeeklyReviewModel(
-            store: try await store(with: []),
+        let model = try await WeeklyReviewModel(
+            store: store(with: []),
             provider: MockWeeklyReviewProvider(),
             referenceDate: referenceDate
         )

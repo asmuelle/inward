@@ -1,1 +1,1 @@
-journal,journaling,diary,voice,private,offline,reflection,gratitude,mindfulness,notes
+audio,speech,dictate,transcribe,notes,daily,log,reflection,gratitude,mindfulness,memoir,thoughts

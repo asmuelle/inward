@@ -1,7 +1,6 @@
 #if (os(iOS) || os(macOS)) && canImport(Speech) && canImport(AVFoundation)
     import AVFoundation
     import Foundation
-    import os
     import SafetyKit
     import Speech
 
@@ -51,43 +50,11 @@
         }
 
         /// Whether the model for the user's locale is already on the device.
-        /// Reported separately from `availability()` so the UI can offer a
-        /// one-time, consented download before voice ever claims to work offline.
         public func assetReadiness() async -> TranscriptionAssetReadiness {
             guard let locale = await resolvedLocale() else { return .unsupported }
-            // Trust the installed-locales inventory, not the install request. On
-            // iOS 26 `assetInstallationRequest(supporting:)` can stay non-nil even
-            // after the model is installed (locale allocation), which made the
-            // prepare prompt loop forever. `installedLocales` is the reliable
-            // signal for "the model is on this phone now".
-            return await Self.isInstalled(locale) ? .installed : .downloadable
-        }
-
-        /// Downloads and installs the on-device model for the user's locale, then
-        /// allocates the locale so it stays available. The single place in the
-        /// engine that may reach the network, and only ever from an explicit
-        /// preflight — never from `start()`.
-        public func prepareAssets() async throws {
-            guard let locale = await resolvedLocale() else {
-                throw TranscriptionError.notAvailable
-            }
-            if await Self.isInstalled(locale) {
-                await Self.reserveLocaleIfNeeded(locale)
-                return
-            }
-            let transcriber = Self.makeTranscriber(for: locale)
-            if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-                try await request.downloadAndInstall()
-            }
-            await Self.reserveLocaleIfNeeded(locale)
-            // Verify the install actually took. If it didn't — asset unavailable
-            // for this locale, or the reserved-locale limit was hit — fail clearly
-            // instead of reporting success and letting the UI bounce straight back
-            // to the download prompt. That silent mismatch was the infinite loop.
-            guard await Self.isInstalled(locale) else {
-                Self.log.error("speech model not installed after download for \(locale.identifier, privacy: .public)")
-                throw TranscriptionError.assetsNotInstalled
-            }
+            // `installedLocales` is the source of truth. The app never requests or
+            // downloads a missing asset; text entry remains available instead.
+            return await Self.isInstalled(locale) ? .installed : .missingAsset
         }
 
         /// Microphone authorization differs by platform: iOS gates through
@@ -112,8 +79,7 @@
             self.transcriber = transcriber
 
             // Recording must never download — that would defeat the airplane-mode
-            // promise. The model has to be installed already (via prepareAssets()
-            // behind a consented preflight); if it isn't, fail cleanly so capture
+            // promise. The model has to be installed already; if it isn't, fail cleanly so capture
             // degrades to the text path (invariant #9) rather than reaching out.
             // Checked against installedLocales (reliable), not the install request.
             guard await Self.isInstalled(locale) else {
@@ -206,38 +172,20 @@
 
         // MARK: - Internals
 
-        private static let log = Logger(subsystem: "app.inward", category: "speech-assets")
-
         /// The supported on-device locale that best fits the device, or nil when
-        /// the user's language has no model at all. Shared by readiness, prepare,
-        /// and start so all three agree on which model is in play.
+        /// the user's language has no model at all. Shared by readiness and start
+        /// so both agree on which model is in play.
         private func resolvedLocale() async -> Locale? {
             let supported = await SpeechTranscriber.supportedLocales
             return TranscriptionLocale.bestMatch(for: preferredLocale(), among: supported)
         }
 
-        /// Whether the on-device model for `locale` is actually installed. The
-        /// reliable readiness signal — `assetInstallationRequest` is not (see
-        /// `assetReadiness`). Compared by BCP-47 so region variants line up.
+        /// Whether the on-device model for `locale` is actually installed.
+        /// Compared by BCP-47 so region variants line up.
         private static func isInstalled(_ locale: Locale) async -> Bool {
             let target = locale.identifier(.bcp47)
             let installed = await SpeechTranscriber.installedLocales
             return installed.contains { $0.identifier(.bcp47) == target }
-        }
-
-        /// Allocates the locale to this app so its installed model stays available.
-        /// Best-effort: the reserved-locale count is capped, so a failure here is
-        /// logged but never blocks capture — `installedLocales` stays the source of
-        /// truth that the caller verifies.
-        private static func reserveLocaleIfNeeded(_ locale: Locale) async {
-            let target = locale.identifier(.bcp47)
-            let reserved = await AssetInventory.reservedLocales
-            guard !reserved.contains(where: { $0.identifier(.bcp47) == target }) else { return }
-            do {
-                try await AssetInventory.reserve(locale: locale)
-            } catch {
-                log.error("could not reserve \(target, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
         }
 
         private static func makeTranscriber(for locale: Locale) -> SpeechTranscriber {

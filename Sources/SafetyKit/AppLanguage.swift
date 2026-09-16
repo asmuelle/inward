@@ -24,6 +24,14 @@ public enum AppLanguage {
     /// tables so the whole experience stays consistent in the chosen language.
     public static let supportedCodes = ["en", "de", "fr", "it", "pt", "es", "nb", "sv", "da", "ru"]
 
+    /// Languages currently supported by Apple Intelligence on eligible devices.
+    /// UI and text journaling remain available for every `supportedCodes` value.
+    public static let generatedInsightCodes: Set<String> = ["en", "de", "fr", "it", "pt", "es", "nb", "sv", "da"]
+
+    public static func supportsGeneratedInsights(_ code: String) -> Bool {
+        generatedInsightCodes.contains(code)
+    }
+
     /// The explicitly chosen language code, or nil when following the device.
     public static func selection(_ defaults: UserDefaults = .standard) -> String? {
         guard let raw = defaults.string(forKey: preferenceKey),

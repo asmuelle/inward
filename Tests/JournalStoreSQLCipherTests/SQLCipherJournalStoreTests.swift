@@ -26,6 +26,29 @@ private func makeEntry(
 
 @Suite("SQLCipherJournalStore — encrypted SQLite behind JournalStoring")
 struct SQLCipherJournalStoreTests {
+    @Test("the M1 encrypted journal migrates into SQLCipher before first use")
+    func legacyJournalMigrates() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("inward-migration-tests-\(UUID().uuidString)", isDirectory: true)
+        let legacyURL = directory.appendingPathComponent("journal.inward")
+        let databaseURL = directory.appendingPathComponent("journal.db")
+        let key = StaticKeyProvider.random()
+        let legacy = EncryptedFileJournalStore(fileURL: legacyURL, keyProvider: key)
+        let entry = makeEntry(text: "Kept before the database upgrade.")
+        let transcription = Transcription(entryId: entry.id, engine: .mock, confidence: 0.8, completedAt: entry.createdAt)
+        try await legacy.save(entry: entry, transcription: transcription)
+        try await legacy.setTags(["archive"], for: entry.id)
+        let destination = try SQLCipherJournalStore(fileURL: databaseURL, keyProvider: key)
+        let store = MigratingJournalStore(destination: destination, legacy: legacy, legacyFileURL: legacyURL)
+
+        let migrated = try await store.allEntries()
+
+        #expect(migrated == [entry])
+        #expect(try await store.transcription(entryID: entry.id) == transcription)
+        #expect(try await store.tags(for: entry.id).map(\.name) == ["archive"])
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
+    }
+
     @Test("entry and transcription round-trip through one save")
     func saveAndFetchRoundTrip() async throws {
         let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
@@ -170,6 +193,22 @@ struct SQLCipherJournalStoreTests {
 
         #expect(updated.updatedAt > entry.createdAt)
         #expect(updated.summary == "A wholly new line.")
+    }
+
+    @Test("editing clears stale entities and re-queues insight extraction")
+    func editInvalidatesInsights() async throws {
+        let store = try SQLCipherJournalStore(fileURL: temporaryDatabaseURL(), keyProvider: StaticKeyProvider.random())
+        let entry = makeEntry(text: "Coffee with Sarah in Berlin.")
+        try await store.save(entry: entry, transcription: nil)
+        try await store.setEntities([
+            JournalEntity(kind: .person, name: "Sarah"),
+            JournalEntity(kind: .place, name: "Berlin"),
+        ], for: entry.id)
+
+        try await store.updateEditedText(entryID: entry.id, textEdited: "A quiet afternoon alone.")
+
+        #expect(try await store.entities(for: entry.id).isEmpty)
+        #expect(try await store.entryIDsNeedingInsights(limit: 10) == [entry.id])
     }
 
     @Test("delete removes the entry and cascades its transcription")

@@ -48,11 +48,7 @@ struct StoreKitGatewayTests {
         _ = try await gateway.purchase(InwardProduct.lifetime.rawValue)
 
         let owned = await gateway.ownedProductIDs()
-        let state = EntitlementPolicy.state(
-            trialStartedAt: Date(timeIntervalSince1970: 0),
-            now: Date(timeIntervalSince1970: 40 * 86_400),
-            ownedProductIDs: owned
-        )
+        let state = EntitlementPolicy.state(ownedProductIDs: owned)
 
         #expect(state == .lifetime)
     }

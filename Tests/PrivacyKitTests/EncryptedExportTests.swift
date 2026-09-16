@@ -3,7 +3,7 @@ import JournalStore
 @testable import PrivacyKit
 import Testing
 
-// Small iteration count keeps the suite fast; the algorithm is identical.
+/// Small iteration count keeps the suite fast; the algorithm is identical.
 private let testIterations = 1000
 
 private func sampleEntry(_ text: String) -> Entry {
@@ -75,7 +75,10 @@ struct EncryptedExportTests {
         }
     }
 
-    @Test("an out-of-range iteration count from a tampered archive is rejected before any derivation", arguments: [1, 999, 20_000_000])
+    @Test(
+        "an out-of-range iteration count from a tampered archive is rejected before any derivation",
+        arguments: [1, 999, 20_000_000]
+    )
     func outOfRangeIterationsRejected(iterations: Int) throws {
         let archive = try EncryptedExport.seal(Data("x".utf8), passphrase: "real", iterations: testIterations)
         let tampered = EncryptedArchive(
@@ -96,10 +99,16 @@ struct JournalExporterTests {
     @Test("a journal round-trips through an encrypted archive")
     func journalRoundTrips() throws {
         let entries = [sampleEntry("Coffee on the balcony before anyone woke up."), sampleEntry("Long day, quiet end.")]
-        let transcriptions = [Transcription(entryId: entries[0].id, engine: .speechTranscriber, confidence: 0.92, completedAt: exportedAt)]
+        let transcriptions = [Transcription(
+            entryId: entries[0].id,
+            engine: .speechTranscriber,
+            confidence: 0.92,
+            completedAt: exportedAt
+        )]
 
         let data = try JournalExporter.archiveData(
-            entries: entries, transcriptions: transcriptions, exportedAt: exportedAt, passphrase: "open sesame", iterations: testIterations
+            entries: entries, transcriptions: transcriptions, exportedAt: exportedAt, passphrase: "open sesame",
+            iterations: testIterations
         )
         let restored = try JournalExporter.restore(from: data, passphrase: "open sesame")
 
@@ -125,7 +134,8 @@ struct JournalExporterTests {
     @Test("the wrong passphrase cannot restore a journal")
     func wrongPassphraseCannotRestore() throws {
         let data = try JournalExporter.archiveData(
-            entries: [sampleEntry("private")], transcriptions: [], exportedAt: exportedAt, passphrase: "right", iterations: testIterations
+            entries: [sampleEntry("private")], transcriptions: [], exportedAt: exportedAt, passphrase: "right",
+            iterations: testIterations
         )
 
         #expect(throws: ExportError.wrongPassphraseOrCorrupt) {
@@ -138,5 +148,21 @@ struct JournalExporterTests {
         #expect(throws: ExportError.malformedArchive) {
             try JournalExporter.restore(from: Data("not an archive".utf8), passphrase: "whatever")
         }
+    }
+
+    @Test("the async archive API produces the same restorable format")
+    func asyncJournalRoundTrips() async throws {
+        let entries = [sampleEntry("A slow morning.")]
+
+        let data = try await JournalExporter.archiveDataAsync(
+            entries: entries,
+            transcriptions: [],
+            exportedAt: exportedAt,
+            passphrase: "open sesame",
+            iterations: testIterations
+        )
+        let restored = try await JournalExporter.restoreAsync(from: data, passphrase: "open sesame")
+
+        #expect(restored.entries == entries)
     }
 }

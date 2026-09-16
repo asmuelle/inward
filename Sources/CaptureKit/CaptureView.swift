@@ -8,7 +8,6 @@
         @Bindable private var coordinator: CaptureCoordinator
         private let onFinished: () -> Void
         private let autoStart: Bool
-        @State private var isPreparing = false
 
         public init(
             coordinator: CaptureCoordinator,
@@ -66,45 +65,9 @@
                     .tint(.inwardClay)
             case .saved:
                 savedStage
-            case .failed(.voiceNeedsPreparation):
-                preparationStage
             case let .failed(failure):
                 failureStage(failure)
             }
-        }
-
-        /// One-time, consented model download. The only place the app reaches the
-        /// network — spelled out plainly — with text entry always one tap away.
-        private var preparationStage: some View {
-            VStack(spacing: Lamplight.Spacing.block) {
-                Text(Copy.voicePrepareTitle)
-                    .font(.lamplight(.chrome))
-                    .foregroundStyle(Color.inwardInk)
-                Text(isPreparing ? Copy.voicePreparing : Copy.voicePrepareBody)
-                    .font(.lamplight(.caption))
-                    .foregroundStyle(Color.inwardSage)
-                if isPreparing {
-                    ProgressView().tint(.inwardClay)
-                } else {
-                    Button(Copy.voicePrepareAction) {
-                        Task {
-                            isPreparing = true
-                            let ready = await coordinator.prepareVoice()
-                            isPreparing = false
-                            if ready { await coordinator.startRecording() }
-                        }
-                    }
-                    .font(.lamplight(.chrome))
-                    .foregroundStyle(Color.inwardClay)
-                    Button(Copy.writeInstead) {
-                        coordinator.reset()
-                        onFinished()
-                    }
-                    .font(.lamplight(.caption))
-                    .foregroundStyle(Color.inwardSage)
-                }
-            }
-            .multilineTextAlignment(.center)
         }
 
         private func recordStage(isRecording: Bool, transcript: String) -> some View {
@@ -244,8 +207,7 @@
         private func failureMessage(_ failure: CaptureFailure) -> String {
             switch failure {
             case .voiceUnavailable: Copy.voiceUnavailable
-            // Handled by `preparationStage`, not this generic failure view.
-            case .voiceNeedsPreparation: Copy.voicePrepareTitle
+            case .voiceAssetsMissing: Copy.voiceAssetsMissing
             case .captureFailed: Copy.captureFailed
             case .saveFailed: Copy.saveFailed
             }

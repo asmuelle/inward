@@ -64,9 +64,15 @@ struct PrivacyWiringTests {
 
     @Test("export produces a file that restores with the same passphrase")
     func exportRoundTrips() async throws {
-        let entries = [Entry(createdAt: Date(timeIntervalSince1970: 1_700_000_000), source: .text, transcriptRaw: "kept", textEdited: "kept", locale: "en_US")]
+        let entries = [Entry(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            source: .text,
+            transcriptRaw: "kept",
+            textEdited: "kept",
+            locale: "en_US"
+        )]
         // Small iteration count keeps the test fast; the path is otherwise identical.
-        let model = ExportModel(store: try await store(with: entries), iterations: 1_000)
+        let model = try await ExportModel(store: store(with: entries), iterations: 1000)
 
         await model.export(passphrase: "open sesame")
 
@@ -80,7 +86,7 @@ struct PrivacyWiringTests {
 
     @Test("an empty passphrase is reported, not exported")
     func emptyPassphraseReported() async throws {
-        let model = ExportModel(store: try await store(with: []), iterations: 1_000)
+        let model = try await ExportModel(store: store(with: []), iterations: 1000)
 
         await model.export(passphrase: "")
 

@@ -102,6 +102,12 @@ schemes:
     build:
       targets:
         Inward: all
+    # Run from Xcode uses the local StoreKit test store, so the paywall loads
+    # products and the free-trial flow can be exercised on a device without the
+    # IAPs existing in App Store Connect yet. Builds installed via devicectl
+    # (`just run-on-device`) do not get this and talk to the real sandbox.
+    run:
+      storeKitConfiguration: App/Tests/Inward.storekit
     test:
       gatherCoverageData: true
       storeKitConfiguration: App/Tests/Inward.storekit

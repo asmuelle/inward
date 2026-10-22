@@ -7,6 +7,12 @@
     /// On iOS 27 all three are exact; on iOS 26 the context size is the
     /// back-deployed 4096, overflow carries no token count, and usage is not
     /// reported — the estimator then simply stays at its pessimistic default.
+    ///
+    /// The iOS 27 symbols (`LanguageModelError`, `Response.usage`) exist only
+    /// in the iOS 27 SDK, which ships with Xcode 27 (Swift 6.4). `#available`
+    /// alone cannot hide a symbol the SDK does not declare, so those paths are
+    /// also fenced by `#if compiler(>=6.4)`: an Xcode 26 toolchain (CI's
+    /// default) builds the iOS 26 behaviour, an Xcode 27 one gets both.
     @available(iOS 26.0, macOS 26.0, *)
     enum ModelAccounting {
         /// The prompt budget left after `fixedText` (instructions plus any
@@ -21,11 +27,13 @@
         /// Maps a FoundationModels failure to `ReflectionError`, surfacing
         /// context overflow as its own case so callers can shrink and retry.
         static func reflectionError(from error: any Error) -> ReflectionError {
-            if #available(iOS 27.0, macOS 27.0, *),
-               case let LanguageModelError.contextSizeExceeded(details) = error
-            {
-                return .contextExceeded(contextSize: details.contextSize, tokenCount: details.tokenCount)
-            }
+            #if compiler(>=6.4)
+                if #available(iOS 27.0, macOS 27.0, *) {
+                    if case let LanguageModelError.contextSizeExceeded(details) = error {
+                        return .contextExceeded(contextSize: details.contextSize, tokenCount: details.tokenCount)
+                    }
+                }
+            #endif
             if case LanguageModelSession.GenerationError.exceededContextWindowSize = error {
                 return .contextExceeded(contextSize: SystemLanguageModel.default.contextSize, tokenCount: 0)
             }
@@ -39,14 +47,16 @@
             promptCharacters: Int,
             into ledger: TokenUsageLedger
         ) async {
-            guard #available(iOS 27.0, macOS 27.0, *) else { return }
-            await ledger.record(
-                TokenUsageObservation(
-                    promptCharacters: promptCharacters,
-                    inputTokens: response.usage.input.totalTokenCount,
-                    outputTokens: response.usage.output.totalTokenCount
+            #if compiler(>=6.4)
+                guard #available(iOS 27.0, macOS 27.0, *) else { return }
+                await ledger.record(
+                    TokenUsageObservation(
+                        promptCharacters: promptCharacters,
+                        inputTokens: response.usage.input.totalTokenCount,
+                        outputTokens: response.usage.output.totalTokenCount
+                    )
                 )
-            )
+            #endif
         }
     }
 #endif

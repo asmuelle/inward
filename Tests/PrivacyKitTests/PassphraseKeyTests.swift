@@ -9,8 +9,8 @@ private func hex(_ key: SymmetricKey) -> String {
 
 @Suite("PassphraseKey — PBKDF2-HMAC-SHA256 derivation")
 struct PassphraseKeyTests {
-    // Published PBKDF2-HMAC-SHA256 test vectors (dkLen = 32). Matching these proves
-    // the CryptoKit-based implementation is the real algorithm, not a lookalike.
+    /// Published PBKDF2-HMAC-SHA256 test vectors (dkLen = 32). Matching these proves
+    /// the CryptoKit-based implementation is the real algorithm, not a lookalike.
     @Test("matches the standard vector at 1 iteration")
     func knownAnswerOneIteration() {
         let key = PassphraseKey.deriveKey(passphrase: "password", salt: Data("salt".utf8), iterations: 1)

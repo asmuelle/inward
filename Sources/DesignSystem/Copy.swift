@@ -34,6 +34,7 @@ public enum Copy {
         "Asking isn't ready on this phone yet. Here is the closest you wrote."
     )
     public static let askEntriesClear = Localized.t("askEntriesClear", "Clear the answer")
+    public static let entryReflectionHeader = Localized.t("entryReflectionHeader", "A question to sit with")
     public static let echoHeader = Localized.t("echoHeader", "On this day")
     public static let echoDismiss = Localized.t("echoDismiss", "Don't show this memory again")
 
@@ -51,19 +52,16 @@ public enum Copy {
         "voiceUnavailable",
         "Voice capture isn't available here. Your written words still stay on this phone."
     )
+    public static let voiceAssetsMissing = Localized.t(
+        "voiceAssetsMissing",
+        "Voice needs Apple's on-device speech language installed first. You can keep writing now; Inward never downloads it while you record."
+    )
     public static let captureFailed = Localized.t("captureFailed", "That didn't take. Your words were not lost — try once more.")
     public static let saveFailed = Localized.t("saveFailed", "Couldn't keep that entry. Nothing left this phone; try again.")
-
-    // MARK: Voice preparation (one-time, consented model download)
-
-    public static let voicePrepareTitle = Localized.t("voicePrepareTitle", "Set voice up once")
-    public static let voicePrepareBody = Localized.t(
-        "voicePrepareBody",
-        "Voice needs to bring its language onto this phone first. That's the one time Inward uses a connection — " +
-            "afterwards, recording works in airplane mode and nothing leaves this phone. Writing already works offline."
+    public static let storageUnavailable = Localized.t(
+        "storageUnavailable",
+        "Your journal couldn't be opened safely. Nothing was replaced. Close Inward and try again."
     )
-    public static let voicePrepareAction = Localized.t("voicePrepareAction", "Bring voice onto this phone")
-    public static let voicePreparing = Localized.t("voicePreparing", "Bringing voice onto this phone…")
 
     // Interrupted mid-recording (a call, a timer, another app took the mic).
     public static let interruptedTitle = Localized.t("interruptedTitle", "Something else took the microphone for a moment.")
@@ -178,7 +176,7 @@ public enum Copy {
         "onboardingStep3",
         "Open Settings ▸ Privacy & Security ▸ App Privacy Report. Inward made no network activity."
     )
-    public static let onboardingBegin = Localized.t("onboardingBegin", "Begin")
+    public static let onboardingBegin = Localized.t("onboardingBegin", "Record or write your first entry")
 
     // MARK: Lock
 
@@ -304,19 +302,84 @@ public enum Copy {
     public static let paywallTitle = Localized.t("paywallTitle", "Keep Inward")
     public static let paywallSubtitle = Localized.t(
         "paywallSubtitle",
-        "Writing and reading are always free. Inward Pro adds the weekly reflection, mind map, and spoken recaps — all on your phone."
+        "Writing, reading and encrypted export are free, always. Inward Pro adds the insight layer — your week gathered, your map — all on your phone."
     )
-    public static let paywallTrialNote = Localized.t("paywallTrialNote", "7 days free, then your plan. Cancel anytime.")
+    public static let paywallTrialNote = Localized.t(
+        "paywallTrialNote",
+        "A free trial is shown only when StoreKit confirms eligibility."
+    )
     public static let paywallLifetimeNote = Localized.t("paywallLifetimeNote", "Pay once. Yours to keep.")
     public static let paywallBestValue = Localized.t("paywallBestValue", "Best value")
     public static let paywallRestore = Localized.t("paywallRestore", "Restore a purchase")
     public static let paywallClose = Localized.t("paywallClose", "Not now")
     public static let paywallBusy = Localized.t("paywallBusy", "Working…")
+    public static let paywallRetry = Localized.t("paywallRetry", "Try again")
+    public static let paywallProductsUnavailable = Localized.t(
+        "paywallProductsUnavailable",
+        "Plans couldn't load. Check your App Store connection and try again."
+    )
+    public static let paywallPurchaseFailed = Localized.t(
+        "paywallPurchaseFailed",
+        "The purchase didn't complete. Nothing was charged; please try again."
+    )
+    public static let paywallRestoreFailed = Localized.t(
+        "paywallRestoreFailed",
+        "Purchases couldn't be restored. Check your App Store connection and try again."
+    )
+    public static let paywallRenews = Localized.t("paywallRenews", "%@ per %@. Renews automatically until cancelled.")
+    public static let paywallTrialTerms = Localized.t(
+        "paywallTrialTerms",
+        "%@ free, then %@ per %@. Renews automatically until cancelled."
+    )
+    public static let periodDay = Localized.t("periodDay", "day")
+    public static let periodWeek = Localized.t("periodWeek", "week")
+    public static let periodMonth = Localized.t("periodMonth", "month")
+    public static let periodYear = Localized.t("periodYear", "year")
+    public static let durationDays = Localized.t("durationDays", "%d days")
+    public static let durationWeeks = Localized.t("durationWeeks", "%d weeks")
+    public static let durationMonths = Localized.t("durationMonths", "%d months")
+    public static let durationYears = Localized.t("durationYears", "%d years")
     public static let paywallReassurance = Localized.t(
         "paywallReassurance",
         "No account. No servers. Your words never leave this phone."
     )
     public static let membershipLink = Localized.t("membershipLink", "Membership")
+
+    public static let settingsGeneratedInsightsUnavailable = Localized.t(
+        "settingsGeneratedInsightsUnavailable",
+        "Writing stays fully available in this language. Generated reflections are not currently supported by Apple Intelligence."
+    )
+    public static let settingsCapabilityTitle = Localized.t("settingsCapabilityTitle", "On this device")
+    public static let settingsCapabilityWriting = Localized.t(
+        "settingsCapabilityWriting",
+        "Writing, reading, and encrypted storage are available offline."
+    )
+    public static let settingsCapabilityVoiceReady = Localized.t(
+        "settingsCapabilityVoiceReady",
+        "Voice transcription is installed and ready offline."
+    )
+    public static let settingsCapabilityVoiceMissing = Localized.t(
+        "settingsCapabilityVoiceMissing",
+        "Voice transcription needs Apple's speech language installed first."
+    )
+    public static let settingsCapabilityVoiceUnavailable = Localized.t(
+        "settingsCapabilityVoiceUnavailable",
+        "Voice transcription is unavailable here; writing still works."
+    )
+    public static let settingsCapabilityInsightsReady = Localized.t(
+        "settingsCapabilityInsightsReady",
+        "Generated reflections are available on this device."
+    )
+    public static let settingsCapabilityInsightsUnavailable = Localized.t(
+        "settingsCapabilityInsightsUnavailable",
+        "Generated reflections are unavailable; grounded recurring themes still work."
+    )
+
+    public static func weeklyThemeEntryCount(_ count: Int) -> String {
+        count == 1
+            ? Localized.t("weeklyThemeCountOne", "in one entry")
+            : String(format: Localized.t("weeklyThemeCountMany", "across %d entries"), count)
+    }
 
     // MARK: Legal
 
@@ -352,6 +415,37 @@ public enum Copy {
     )
     public static let proofOpenSettings = Localized.t("proofOpenSettings", "Open system settings")
 
+    // MARK: Share cards
+
+    // Sharing is the one path out of the app, and it is a picture, not a link:
+    // composed on device, previewed in full, and sent only by the user's hand.
+
+    public static let shareAction = Localized.t("shareAction", "Share")
+    public static let shareSheetTitle = Localized.t("shareSheetTitle", "What leaves this phone")
+    public static let shareSheetCaption = Localized.t(
+        "shareSheetCaption",
+        "Only this picture is shared, and only if you send it. Read it first — nothing else goes with it."
+    )
+    public static let shareSheetSend = Localized.t("shareSheetSend", "Share picture")
+    public static let shareUnavailable = Localized.t("shareUnavailable", "There's nothing to picture yet.")
+    /// Printed on every card, so the picture explains itself wherever it lands.
+    public static let shareWordmark = Localized.t("shareWordmark", "Inward — journaling that stays on the phone")
+
+    public static let shareProofHeadline = Localized.t("shareProofHeadline", "This journal has never left my phone.")
+    public static let shareProofOffline = Localized.t("shareProofOffline", "Written in airplane mode")
+    public static let shareProofOnline = Localized.t("shareProofOnline", "No account · no cloud · no server")
+    public static let shareProofBody = Localized.t(
+        "shareProofBody",
+        "Spoken or written, kept on the device that heard it. You can check: switch everything off and it still works."
+    )
+
+    public static let shareMindMapHeadline = Localized.t("shareMindMapHeadline", "What I keep coming back to")
+    /// Names are deliberately absent from the picture — see MindMapShareCard.
+    public static let shareMindMapCaption = Localized.t(
+        "shareMindMapCaption",
+        "One circle for everything that came up again, sized by how often. No names, no words — just the shape of it."
+    )
+
     /// The compliance surface: every string above, for the banned-terms scan.
     public static let allStrings: [String] = [
         appName,
@@ -381,12 +475,11 @@ public enum Copy {
         writeInstead,
         writePlaceholder,
         voiceUnavailable,
+        voiceAssetsMissing,
         captureFailed,
         saveFailed,
-        voicePrepareTitle,
-        voicePrepareBody,
-        voicePrepareAction,
-        voicePreparing,
+        storageUnavailable,
+        entryReflectionHeader,
         summarizingLabel,
         confirmKeep,
         confirmAddMore,
@@ -482,8 +575,30 @@ public enum Copy {
         paywallRestore,
         paywallClose,
         paywallBusy,
+        paywallRetry,
+        paywallProductsUnavailable,
+        paywallPurchaseFailed,
+        paywallRestoreFailed,
+        paywallRenews,
+        paywallTrialTerms,
+        periodDay,
+        periodWeek,
+        periodMonth,
+        periodYear,
+        durationDays,
+        durationWeeks,
+        durationMonths,
+        durationYears,
         paywallReassurance,
         membershipLink,
+        settingsGeneratedInsightsUnavailable,
+        settingsCapabilityTitle,
+        settingsCapabilityWriting,
+        settingsCapabilityVoiceReady,
+        settingsCapabilityVoiceMissing,
+        settingsCapabilityVoiceUnavailable,
+        settingsCapabilityInsightsReady,
+        settingsCapabilityInsightsUnavailable,
         legalPrivacyLink,
         legalTermsLink,
         weeklyReviewLink,
@@ -496,5 +611,17 @@ public enum Copy {
         supportHeader,
         supportIntro,
         stillness,
-    ]
+        shareAction,
+        shareSheetTitle,
+        shareSheetCaption,
+        shareSheetSend,
+        shareUnavailable,
+        shareWordmark,
+        shareProofHeadline,
+        shareProofOffline,
+        shareProofOnline,
+        shareProofBody,
+        shareMindMapHeadline,
+        shareMindMapCaption,
+    ] + threadsStrings
 }

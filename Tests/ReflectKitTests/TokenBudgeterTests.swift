@@ -1,8 +1,14 @@
 @testable import ReflectKit
 import Testing
 
-@Suite("TokenBudgeter — staying under the 8K window")
+@Suite("TokenBudgeter — staying under the 4K window")
 struct TokenBudgeterTests {
+    @Test("the published on-device context limit is the single source of truth")
+    func contextWindow() {
+        #expect(TokenBudgeter.contextWindow == 4096)
+        #expect(TokenBudgeter.defaultInputBudget < TokenBudgeter.contextWindow)
+    }
+
     @Test("estimation is pessimistic and monotonic")
     func estimationBasics() {
         #expect(TokenBudgeter.estimateTokens("") == 0)
@@ -55,6 +61,16 @@ struct TokenBudgeterTests {
     @Test("whitespace-only input yields no chunks")
     func whitespaceYieldsNothing() {
         #expect(TokenBudgeter.chunk("   \n  ", maxTokens: 10).isEmpty)
+    }
+
+    @Test("fitting text reserves room and never exceeds the requested input budget")
+    func fittingTextIsBounded() {
+        let text = Array(repeating: "A quiet sentence about the day.", count: 2000).joined(separator: " ")
+
+        let fitted = TokenBudgeter.fittingPrefix(text, maxTokens: 512)
+
+        #expect(TokenBudgeter.estimateTokens(fitted) <= 512)
+        #expect(!fitted.isEmpty)
     }
 }
 

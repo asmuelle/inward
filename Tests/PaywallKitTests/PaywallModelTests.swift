@@ -2,117 +2,99 @@ import Foundation
 @testable import PaywallKit
 import Testing
 
-private let trialStart = Date(timeIntervalSince1970: 1_750_000_000)
-private let calendar = Calendar(identifier: .gregorian)
+private struct FailingGateway: PurchaseGateway {
+    enum Failure: Error { case unavailable }
 
-private func daysLater(_ days: Int) -> Date {
-    calendar.date(byAdding: .day, value: days, to: trialStart)!
+    let failProducts: Bool
+
+    func availableProducts() async throws -> [PaywallProduct] {
+        if failProducts { throw Failure.unavailable }
+        return PaywallProduct.samples
+    }
+
+    func purchase(_: String) async throws -> PurchaseResult {
+        throw Failure.unavailable
+    }
+
+    func restore() async throws {
+        throw Failure.unavailable
+    }
+
+    func ownedProductIDs() async -> Set<String> {
+        []
+    }
+
+    func entitlementUpdates() -> AsyncStream<Void> {
+        AsyncStream { $0.finish() }
+    }
 }
 
 @MainActor
-@Suite("PaywallModel — the trial → purchase → restore loop")
+@Suite("PaywallModel — StoreKit-only entitlement and recoverable failures")
 struct PaywallModelTests {
-    private func model(
-        gateway: any PurchaseGateway,
-        now: Date
-    ) -> PaywallModel {
-        PaywallModel(gateway: gateway, trialStartedAt: trialStart, now: { now }, calendar: calendar)
-    }
-
-    @Test("during the trial the app is unlocked and products load annual-first")
-    func trialUnlockedAndProductsLoad() async {
-        let model = model(gateway: MockPurchaseGateway(), now: daysLater(2))
-
-        await model.refresh()
-
-        #expect(model.entitlement == .trial(daysRemaining: 5))
-        #expect(model.isInsightLocked == false)
-        #expect(model.products.map(\.kind) == [.annual, .monthly, .lifetime])
-    }
-
-    @Test("after the trial lapses with no purchase, the insight layer locks")
-    func lapsedTrialLocks() async {
-        let model = model(gateway: MockPurchaseGateway(), now: daysLater(10))
+    @Test("products load annual-first and no local trial unlocks the app")
+    func productsLoad() async {
+        let model = PaywallModel(gateway: MockPurchaseGateway())
 
         await model.refresh()
 
         #expect(model.entitlement == .expired)
-        #expect(model.isInsightLocked)
+        #expect(model.loadState == .loaded)
+        #expect(model.products.map(\.kind) == [.annual, .monthly, .lifetime])
     }
 
-    @Test("buying the annual subscription unlocks the app")
-    func purchaseAnnualUnlocks() async {
-        let model = model(gateway: MockPurchaseGateway(), now: daysLater(10))
+    @Test("a product loading failure is visible and retryable")
+    func productFailureIsVisible() async {
+        let model = PaywallModel(gateway: FailingGateway(failProducts: true))
+
         await model.refresh()
-        #expect(model.isInsightLocked)
+
+        guard case .failed = model.loadState else {
+            Issue.record("expected a failed load state")
+            return
+        }
+        #expect(model.products.isEmpty)
+        #expect(model.lastErrorMessage != nil)
+    }
+
+    @Test("purchase errors are failures, never disguised as pending")
+    func purchaseFailureIsVisible() async {
+        let model = PaywallModel(gateway: FailingGateway(failProducts: false))
+
+        let result = await model.purchase(InwardProduct.annual.rawValue)
+
+        guard case .failed = result else {
+            Issue.record("expected a failed purchase result")
+            return
+        }
+        #expect(model.lastErrorMessage != nil)
+    }
+
+    @Test("buying annual unlocks the app")
+    func purchaseAnnualUnlocks() async {
+        let model = PaywallModel(gateway: MockPurchaseGateway())
 
         let result = await model.purchase(InwardProduct.annual.rawValue)
 
         #expect(result == .success)
         #expect(model.entitlement == .active)
-        #expect(model.isInsightLocked == false)
+        #expect(!model.isInsightLocked)
     }
 
-    @Test("buying lifetime grants lifetime entitlement")
-    func purchaseLifetime() async {
-        let model = model(gateway: MockPurchaseGateway(), now: daysLater(10))
-
-        _ = await model.purchase(InwardProduct.lifetime.rawValue)
-
-        #expect(model.entitlement == .lifetime)
-    }
-
-    @Test("a cancelled purchase changes nothing")
-    func cancelledPurchaseIsNoop() async {
-        let model = model(gateway: MockPurchaseGateway(purchaseResult: .userCancelled), now: daysLater(10))
-        await model.refresh()
-
-        let result = await model.purchase(InwardProduct.annual.rawValue)
-
-        #expect(result == .userCancelled)
-        #expect(model.entitlement == .expired)
-        #expect(model.isInsightLocked)
-    }
-
-    @Test("restore recovers a previously-owned lifetime purchase")
-    func restoreRecoversLifetime() async {
-        let gateway = MockPurchaseGateway(restorable: [InwardProduct.lifetime.rawValue])
-        let model = model(gateway: gateway, now: daysLater(10))
-        await model.refresh()
-        #expect(model.isInsightLocked)
+    @Test("restore failure is visible")
+    func restoreFailureIsVisible() async {
+        let model = PaywallModel(gateway: FailingGateway(failProducts: false))
 
         await model.restore()
 
-        #expect(model.entitlement == .lifetime)
-        #expect(model.isInsightLocked == false)
-    }
-}
-
-@Suite("EntitlementPolicy — entitlement from owned product ids")
-struct EntitlementFromOwnedTests {
-    @Test("lifetime ownership wins even long past the trial")
-    func lifetimeWins() {
-        let state = EntitlementPolicy.state(
-            trialStartedAt: trialStart,
-            now: daysLater(400),
-            ownedProductIDs: [InwardProduct.lifetime.rawValue]
-        )
-        #expect(state == .lifetime)
+        #expect(model.lastErrorMessage != nil)
     }
 
-    @Test("an active subscription is active past the trial")
-    func subscriptionActive() {
-        #expect(
-            EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(40), ownedProductIDs: [InwardProduct.monthly.rawValue]) == .active
-        )
-        #expect(
-            EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(40), ownedProductIDs: [InwardProduct.annual.rawValue]) == .active
-        )
-    }
+    @Test("subscription samples expose billing and eligible free-trial terms")
+    func productTermsAreExplicit() throws {
+        let annual = try #require(PaywallProduct.samples.first { $0.kind == .annual })
 
-    @Test("owning nothing follows the trial clock")
-    func nothingOwnedFollowsTrial() {
-        #expect(EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(1), ownedProductIDs: []) == .trial(daysRemaining: 6))
-        #expect(EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(8), ownedProductIDs: []) == .expired)
+        #expect(annual.billingPeriod == BillingPeriod(value: 1, unit: .year))
+        #expect(annual.introductoryOffer == IntroductoryOffer(period: BillingPeriod(value: 1, unit: .week)))
     }
 }

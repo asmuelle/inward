@@ -39,7 +39,10 @@
         public init() {}
 
         public func availability() async -> InsightAvailability {
-            switch SystemLanguageModel.default.availability {
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                return .unavailable(reason: "language not supported for generated insights")
+            }
+            return switch SystemLanguageModel.default.availability {
             case .available:
                 .available
             case let .unavailable(reason):
@@ -51,6 +54,9 @@
             guard case .available = SystemLanguageModel.default.availability else {
                 throw InsightError.modelUnavailable
             }
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                throw InsightError.modelUnavailable
+            }
 
             // Topics and the feeling word are the model's own phrasing, so pin them
             // to the writer's language — otherwise a German entry gets English
@@ -59,10 +65,11 @@
             let language = AppLanguage.resolved()
             let instructions = "\(language.modelInstruction)\n\n\(Self.instructions)"
             let session = LanguageModelSession(instructions: instructions)
+            let boundedText = ModelPromptBudget.fittingPrefix(entry.text, maxTokens: 2400)
             let prompt = """
             Here is the entry:
 
-            \(entry.text)
+            \(boundedText)
 
             Extract its people, places, and objects from the writer's own words,
             up to three lowercase topics, one calm word for the feeling, and any

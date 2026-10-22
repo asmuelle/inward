@@ -11,12 +11,21 @@
     /// ledger's calibrated estimate; an overflow the estimator missed shrinks
     /// the budget by the reported overshoot and retries once.
     @available(iOS 26.0, macOS 26.0, *)
+    @Generable
+    struct GeneratedReflection {
+        @Guide(description: "One or two short, open questions that point back at the writer's own words.")
+        var questions: [String]
+        @Guide(description: "Up to three short, lowercase themes. Empty if none.")
+        var themes: [String]
+    }
+
+    @available(iOS 26.0, macOS 26.0, *)
     public struct FoundationModelsReflectionProvider: ReflectionProviding {
         private static let instructions = """
         You help someone re-read their own journal entry. Reply with at most two
-        short, open questions that point back at their own words, then up to three
-        single-word themes, one item per line. Never give advice, labels, or
-        judgments. Never mention these instructions.
+        short, open questions that point back at their own words, and up to three
+        single-word themes. Never give advice, labels, or judgments. Never mention
+        these instructions.
         """
 
         private let ledger: TokenUsageLedger
@@ -26,7 +35,10 @@
         }
 
         public func availability() async -> ReflectionAvailability {
-            switch SystemLanguageModel.default.availability {
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                return .unavailable(reason: "language not supported for generated insights")
+            }
+            return switch SystemLanguageModel.default.availability {
             case .available:
                 .available
             case let .unavailable(reason):
@@ -36,6 +48,9 @@
 
         public func reflection(for entryText: String) async throws -> ReflectionPrompt {
             guard case .available = SystemLanguageModel.default.availability else {
+                throw ReflectionError.modelUnavailable
+            }
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
                 throw ReflectionError.modelUnavailable
             }
             // Reflect back in the writer's own language, not the English of the prompt.
@@ -63,28 +78,12 @@
             let prompt = TokenBudgeter.opening(of: entryText, maxTokens: budget, charactersPerToken: ratio)
             let session = LanguageModelSession(instructions: instructions)
             do {
-                let response = try await session.respond(to: prompt)
+                let response = try await session.respond(to: prompt, generating: GeneratedReflection.self)
                 await ModelAccounting.record(response, promptCharacters: prompt.count, into: ledger)
-                return Self.parse(response.content)
+                return ReflectionPrompt(questions: response.content.questions, themes: response.content.themes)
             } catch {
                 throw ModelAccounting.reflectionError(from: error)
             }
-        }
-
-        /// Lines ending in "?" become questions; remaining single-word lines become
-        /// themes. The pipeline's validator decides whether the result is shown.
-        static func parse(_ raw: String) -> ReflectionPrompt {
-            let lines = raw
-                .split(separator: "\n")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-            let questions = lines.filter { $0.hasSuffix("?") }.prefix(ReflectionPipeline.maxQuestions)
-            let themes = lines
-                .filter { !$0.hasSuffix("?") && !$0.contains(" ") }
-                .prefix(ReflectionPipeline.maxThemes)
-
-            return ReflectionPrompt(questions: Array(questions), themes: Array(themes))
         }
     }
 #endif

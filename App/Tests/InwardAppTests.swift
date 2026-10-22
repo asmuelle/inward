@@ -1,9 +1,23 @@
 import CaptureKit
 import DesignSystem
 import Foundation
+@testable import Inward
 import JournalStore
+import ReflectKit
 import SafetyKit
 import Testing
+
+private struct FixedReflectionProvider: ReflectionProviding {
+    let prompt: ReflectionPrompt
+
+    func availability() async -> ReflectionAvailability {
+        .available
+    }
+
+    func reflection(for _: String) async throws -> ReflectionPrompt {
+        prompt
+    }
+}
 
 /// Device-level checks for the composed app: the encrypted loop works inside the
 /// iOS sandbox, and shipped copy stays clean.
@@ -48,5 +62,31 @@ struct InwardAppTests {
 
         // Assert
         #expect(first == second)
+    }
+
+    @MainActor
+    @Test("entry detail reflection model runs the guarded reflection pipeline")
+    func entryReflectionLoads() async {
+        let expected = ReflectionPrompt(questions: ["What stayed with you?"], themes: ["morning"])
+        let provider = FixedReflectionProvider(prompt: expected)
+        let model = EntryReflectionModel(
+            entryText: "A slow morning by the window.",
+            pipeline: ReflectionPipeline(provider: provider)
+        )
+
+        await model.load()
+
+        #expect(model.outcome == .reflection(expected))
+    }
+
+    @MainActor
+    @Test("timeline reports encrypted database failures instead of an empty journal")
+    func timelineReportsStoreFailure() async {
+        let model = TimelineModel(store: UnavailableJournalStore(error: .corruptDatabase))
+
+        await model.refresh()
+
+        #expect(model.loadFailed)
+        #expect(model.entries.isEmpty)
     }
 }

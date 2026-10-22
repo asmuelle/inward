@@ -1,7 +1,7 @@
 import Foundation
 
 /// Produces the short, stored summary of an entry. Precomputed once at save so the
-/// weekly review reasons over summaries (staying under the model's 8K window)
+/// weekly review reasons over summaries (staying under the model's 4K window)
 /// instead of re-reading every full entry. Deterministic and model-optional
 /// (invariant #9); an on-device model can populate the same field later.
 public enum EntrySummary {

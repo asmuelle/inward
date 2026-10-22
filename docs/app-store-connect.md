@@ -14,11 +14,18 @@ products and the App Privacy answers — plus the submission checklist.
 | Field | Value |
 |---|---|
 | Bundle ID | `app.inward.Inward` |
-| Name | Inward |
-| Subtitle | Private voice journaling |
+| Name | Inward: Private Voice Diary |
+| Subtitle | Offline, encrypted journaling |
 | Primary category | **Lifestyle** (recommended) |
 | Secondary category | Productivity |
 | Price | Free (with in-app purchases) |
+
+Name/subtitle rationale (ASO): the name field carries the heaviest search weight,
+so it uses its 30 characters rather than the bare wordmark — "voice diary" is a
+niche Inward can rank in, where "journal" is contested by Apple's own Journal app.
+The subtitle carries the terms the name does not (`offline`, `encrypted`,
+`journaling`), and the keyword field repeats **neither**: anything already in the
+name or subtitle is indexed, so repeating it there wastes the 100-character budget.
 
 Category rationale: Inward is positioned strictly as reflective journaling, not a
 health or medical product. **Lifestyle** keeps it clear of medical-claim scrutiny;
@@ -34,8 +41,8 @@ One subscription group plus one non-consumable. Product IDs must match
 
 | Reference name | Product ID | Type | Duration | Price (USD) | Intro offer |
 |---|---|---|---|---|---|
-| Inward Monthly | `app.inward.subscription.monthly` | Auto-Renewable | 1 month | 9.99 | 7-day free trial |
-| Inward Yearly | `app.inward.subscription.annual` | Auto-Renewable | 1 year | 59.99 | 7-day free trial |
+| Inward Monthly | `app.inward.subscription.monthly` | Auto-Renewable | 1 month | 6.99 | 7-day free trial |
+| Inward Yearly | `app.inward.subscription.annual` | Auto-Renewable | 1 year | 39.99 | 7-day free trial |
 
 - Both subscriptions share the **same group** so a member can move between them and
   only ever holds one active entitlement.
@@ -46,16 +53,16 @@ One subscription group plus one non-consumable. Product IDs must match
 
 | Reference name | Product ID | Type | Price (USD) |
 |---|---|---|---|
-| Inward Lifetime | `app.inward.lifetime` | Non-Consumable | 129.99 |
+| Inward Lifetime | `app.inward.lifetime` | Non-Consumable | 79.99 |
 
 - Localized display name: "Lifetime".
 
 ### Per-product review notes (App Store Connect)
 
-- Description (Monthly/Yearly): "Unlimited new writing and weekly reflections, all
-  on device. 7-day free trial."
-- Description (Lifetime): "Unlimited new writing and weekly reflections, all on
-  device. Pay once."
+- Description (Monthly/Yearly): "Weekly reflections and the mind map, all on
+  device. Writing itself is always free. 7-day free trial."
+- Description (Lifetime): "Weekly reflections and the mind map, all on device.
+  Writing itself is always free. Pay once."
 - Screenshot: provide a screenshot of the in-app paywall (`PaywallView`).
 
 > IAP products are not managed by `fastlane deliver`. Create them in App Store

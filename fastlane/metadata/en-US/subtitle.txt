@@ -1,1 +1,1 @@
-Private voice journaling
+Offline, encrypted journaling

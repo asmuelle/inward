@@ -1,6 +1,34 @@
 import DesignSystem
 import JournalStore
+import Observation
+import ReflectKit
+import SafetyKit
 import SwiftUI
+
+@MainActor
+@Observable
+final class EntryReflectionModel {
+    private(set) var outcome: ReflectionOutcome?
+
+    private var entryText: String
+    private let pipeline: ReflectionPipeline
+
+    init(entryText: String, pipeline: ReflectionPipeline) {
+        self.entryText = entryText
+        self.pipeline = pipeline
+    }
+
+    func load() async {
+        guard outcome == nil else { return }
+        outcome = await pipeline.reflect(on: entryText)
+    }
+
+    func reload(for text: String) async {
+        entryText = text
+        outcome = nil
+        await load()
+    }
+}
 
 /// Reopen and read a kept entry — always available, never paywalled. Supports
 /// post-hoc editing (the raw transcript stays untouched as provenance) and
@@ -8,6 +36,7 @@ import SwiftUI
 struct EntryDetailView: View {
     @State private var entry: Entry
     private let store: (any JournalStoring)?
+    @State private var reflection: EntryReflectionModel?
     /// Derived tag suggestions are part of the paid understanding layer; hand
     /// tags always work regardless.
     private let suggestionsEnabled: Bool
@@ -28,12 +57,16 @@ struct EntryDetailView: View {
     init(
         entry: Entry,
         store: (any JournalStoring)? = nil,
+        reflectionPipeline: ReflectionPipeline? = nil,
         suggestionsEnabled: Bool = true,
         onEdited: @escaping (Entry) -> Void = { _ in },
         onRequestDelete: @escaping (Entry) -> Void = { _ in },
         relatedProvider: ((Entry) async -> [Entry])? = nil
     ) {
         _entry = State(initialValue: entry)
+        _reflection = State(initialValue: reflectionPipeline.map {
+            EntryReflectionModel(entryText: entry.textEdited, pipeline: $0)
+        })
         self.store = store
         self.suggestionsEnabled = suggestionsEnabled
         self.onEdited = onEdited
@@ -58,6 +91,9 @@ struct EntryDetailView: View {
                 if store != nil, !isEditing {
                     tagsSection
                 }
+                if !isEditing {
+                    reflectionSection
+                }
                 if !related.isEmpty, !isEditing {
                     relatedSection
                 }
@@ -66,7 +102,10 @@ struct EntryDetailView: View {
         }
         .background(Color.inwardPaper.ignoresSafeArea())
         .inwardInlineTitle()
-        .task { await load() }
+        .task {
+            await load()
+            await reflection?.load()
+        }
         .toolbar {
             if store != nil, !isEditing {
                 ToolbarItem(placement: .inwardTrailing) {
@@ -139,12 +178,58 @@ struct EntryDetailView: View {
             if let updated = try? await store.updateEditedText(entryID: entry.id, textEdited: text) {
                 entry = updated
                 onEdited(updated)
+                await reflection?.reload(for: updated.textEdited)
             }
             isEditing = false
         }
     }
 
     // MARK: - Tags
+
+    @ViewBuilder private var reflectionSection: some View {
+        switch reflection?.outcome {
+        case let .reflection(prompt):
+            PaperCard {
+                VStack(alignment: .leading, spacing: Lamplight.Spacing.element) {
+                    Text(Copy.entryReflectionHeader)
+                        .font(.lamplight(.caption))
+                        .foregroundStyle(Color.inwardSage)
+                    ForEach(prompt.questions, id: \.self) { question in
+                        Text(question)
+                            .font(.lamplight(.entryProse))
+                            .foregroundStyle(Color.inwardInk)
+                    }
+                    if !prompt.themes.isEmpty {
+                        Text(prompt.themes.joined(separator: " · "))
+                            .font(.lamplight(.caption))
+                            .foregroundStyle(Color.inwardSage)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case let .suppressed(resources):
+            VStack(alignment: .leading, spacing: Lamplight.Spacing.element) {
+                Text(Copy.supportHeader)
+                    .font(.lamplight(.journalTitle))
+                    .foregroundStyle(Color.inwardInk)
+                Text(Copy.supportIntro)
+                    .font(.lamplight(.entryProse))
+                    .foregroundStyle(Color.inwardInk)
+                ForEach(resources) { resource in
+                    PaperCard {
+                        VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+                            Text(resource.name).font(.lamplight(.chrome))
+                            Text(resource.detail).font(.lamplight(.entryProse))
+                        }
+                        .foregroundStyle(Color.inwardInk)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        case .none, .unavailable:
+            EmptyView()
+        }
+    }
 
     private var tagsSection: some View {
         VStack(alignment: .leading, spacing: Lamplight.Spacing.element) {

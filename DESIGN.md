@@ -48,10 +48,10 @@ SwiftUI surfaces (timeline, entry, weekly review, paywall)
 | `CaptureKit` | Audio recording, SpeechTranscriber on-device ASR, live transcript editing UI |
 | `JournalStore` | GRDB + SQLCipher encrypted store, `NSFileProtectionComplete`, migrations, entity types |
 | `RecallKit` | Local RAG: NLContextualEmbedding (or small Core ML embedder) + sqlite-vec, Core Spotlight indexing, retrieval for reviews |
-| `ReflectKit` | FoundationModels `LanguageModelSession`, @Generable reflection/theme/review types, prompt persona with few-shot exemplars, 8K-window chunking via token-count APIs, hierarchical entry summaries |
+| `ReflectKit` | FoundationModels `LanguageModelSession`, @Generable reflection/theme/review types, prompt persona with few-shot exemplars, 4K-window budgeting and hierarchical entry summaries |
 | `SafetyKit` | Deterministic crisis keyword matcher, static resource directory (bundled, localized), model-output suppression gate |
 | `PrivacyKit` | No-egress assertion harness (debug URLProtocol interceptor), client-side-encrypted export to Files/iCloud Drive, biometric lock |
-| `PaywallKit` | StoreKit 2, 7-day trial, hard paywall, entitlement cache |
+| `PaywallKit` | StoreKit 2, entry-count sample, StoreKit-managed 7-day trial, hard paywall, entitlement cache |
 | `DesignSystem` | Tokens, typography, components, motion |
 | `Inward` (app shell) | Composition root, navigation, onboarding; no business logic |
 
@@ -60,7 +60,7 @@ SwiftUI surfaces (timeline, entry, weekly review, paywall)
 | Tier | Used for | Notes |
 |---|---|---|
 | Deterministic code | Capture, storage, search, streaks/stats, crisis keyword gate, export, paywall logic | Always first choice; safety gate is *never* a model |
-| On-device model (AFM 3 Core, ~$0/query) | Reflection prompts, theme tagging, entry summaries, weekly review synthesis | @Generable structured output only; chunk under 8K context with hierarchical summaries |
+| On-device model (AFM 3 Core, ~$0/query) | Reflection prompts, theme tagging, entry summaries, weekly review synthesis | @Generable structured output only; stay under the published 4K context with conservative input reserves |
 | Frontier model (cloud) | **Never at runtime.** Development-time only: prompt eval harnesses, test fixture generation | A cloud call in the shipped journaling path is a release blocker |
 
 Whisper.cpp (small) is the ASR fallback for devices without SpeechTranscriber. If Apple Intelligence is unavailable, journaling fully works; reflection surfaces show a graceful "reflections unavailable on this device" state.
@@ -76,7 +76,7 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 - **ThemeTag** — `id`, `name`, `firstSeenAt`; join table `EntryTheme` (`entryId`, `themeId`, `derivedBy` model/user)
 - **EmbeddingChunk** — `entryId`, `chunkIndex`, `textRange`, `vector` (sqlite-vec virtual table)
 - **SafetyEvent** — `id`, `entryId`, `categoryMatched`, `resourceShownId`, `at` (local only, never exported by default, lets us test the gate)
-- **Entitlement** — `productId`, `state` (trial/active/expired/lifetime), `expiresAt?`, `lastVerifiedAt` (StoreKit 2 cache)
+- **Entitlement** — active subscription/lifetime ownership from verified StoreKit transactions; introductory-offer eligibility remains StoreKit-owned and is never inferred from install time
 - **Settings** — biometric lock flag, reminder schedule, ASR locale, export preferences
 
 ## Key Flows
@@ -97,7 +97,7 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 5. Reflection + ThemeTags persist to the store.
 
 ### 3. Weekly review with citations
-1. Sunday evening (local notification, user-scheduled), the app assembles the week: per-entry summaries (precomputed at save time to stay under the 8K window) + RecallKit retrieval of related older entries by theme.
+1. Sunday evening (local notification, user-scheduled), the app assembles the week from per-entry summaries precomputed at save time and bounded under the 4K model window.
 2. `ReflectKit` synthesizes a @Generable `WeeklyReview`: recurring themes, one gentle observation per theme, each citing ≥1 `entryId` that exists in the store.
 3. UI renders each observation with tappable citations that open the original entries — the trust artifact.
 4. Reviews with invalid citations are rejected and regenerated once; second failure shows themes-only (deterministic counts) without synthesis.
@@ -110,15 +110,24 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 5. An answer with no valid citation, a citation outside the retrieved set, regulated vocabulary, or lecture-length prose is regenerated once; a second failure degrades to the plain retrieval list. The model's own "not in the entries" flag is honoured without retry.
 6. Each question is stateless — no history, no conversation — which keeps the surface a re-reading of the writer's own words rather than a companion. Synthesis is part of the paid understanding layer; the retrieved entries stay readable underneath in every state.
 
+### 3c. Threads map (a month drawn as a mind map)
+1. The mind map screen (Pro-gated at `beginMindMap`) has two sources: **Names & places**, the deterministic constellation of extracted entities, and **Threads**, a map the on-device model draws on request — never on every visit.
+2. On "Draw the map", the app assembles the last 30 days from precomputed summaries, newest first, and `MindMapContext.fitting` trims the oldest beyond a 4K-token budget. Nothing outside those entries is citable.
+3. `MindMapPipeline` runs the crisis gate over every summary before any model call; a match shows static resources only (invariant #5).
+4. `ReflectKit` draws a @Generable `MindMap`: a center phrase, two to six branches, each with up to four leaves in the writer's own words, every branch and leaf citing entry numbers resolved through the weekly review's numbering.
+5. A map with an empty node, an uncited node, a citation outside the month, a label over 60 characters, or regulated vocabulary is regenerated once; a second failure — or an unavailable or withheld model — degrades to deterministic recurring-theme counts drawn as a flat map (invariants #7 and #9).
+6. `RadialTreeLayout` (DesignSystem, pure geometry) places the center, a ring of branches, and fanned leaves; every node opens the entries it came from, and a list mode carries the same tree for VoiceOver and large type. The Threads map has no share card: it holds the user's own phrases, which never leave the phone.
+
 ### 4. Airplane-mode proof (onboarding + marketing surface)
 1. Onboarding invites the user to enable airplane mode and record their first entry.
 2. The proof screen shows: airplane-mode state, entry saved, transcript produced, and points to iOS App Privacy Report ("check it — no network activity").
 3. This flow doubles as the demo for App Store screenshots and launch content.
 
-### 5. Trial → hard paywall
-1. Days 1–7: full functionality, trial state from StoreKit 2.
-2. Day 8: hard paywall — new capture and reflections lock; reading existing entries and export always remain free (users own their words; export is never paywalled).
-3. Annual-first paywall: $59.99/yr highlighted, $9.99/mo, $129.99 lifetime ("no servers, no subscription required to keep your words yours").
+### 5. Value sample → StoreKit trial → hard paywall
+1. First three entries are an entry-count sample, not a local trial. The third opens a deterministic, citation-backed First Look.
+2. Further capture and generated insights require ownership. Eligible customers may start the StoreKit-managed 7-day introductory offer; reinstalling or changing the clock cannot reset eligibility.
+3. Reading existing entries and encrypted export always remain free.
+4. Annual-first paywall: $39.99/yr highlighted, $6.99/mo, $79.99 lifetime, with customer-specific trial eligibility and renewal terms read from StoreKit.
 4. Purchase/restore via StoreKit 2; entitlement cached locally; no receipts sent to any first-party server (there is none).
 
 ## Product & Visual Design Direction
@@ -152,8 +161,8 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 - **Accept:** every weekly-review observation cites ≥1 real entry (tested); safety gate suppresses model output on seeded crisis fixtures (tested); App Privacy Report shows no journaling-path network activity in a manual device pass.
 
 ### M3 — Monetization wiring
-- StoreKit 2 products: $9.99/mo, $59.99/yr (annual-first), $129.99 lifetime; 7-day trial; hard paywall honoring "reading + export never paywalled."
-- StoreKitTest coverage for trial expiry, purchase, restore, lifetime.
+- StoreKit 2 products: $6.99/mo, $39.99/yr (annual-first), $79.99 lifetime; three-entry First Look; StoreKit-managed 7-day offer; insight paywall honoring "capture, reading + export never paywalled."
+- StoreKitTest coverage for offer eligibility, purchase, restore, and lifetime.
 - Paywall + App Store metadata pass the banned-terms lint; App Privacy "Data Not Collected" label justified and accurate.
 - **Accept:** full trial→paywall→purchase→restore loop green under StoreKitTest; metadata reviewed against the legal constraint.
 
@@ -162,9 +171,9 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 | # | Risk | Mitigation |
 |---|---|---|
 | 1 | **Regulatory:** CBT/therapy framing is the regulated *service*; on-device exempts nothing (Woebot exposure, locally computed) | Hard product invariant: zero therapy/CBT/distortion language anywhere; CI banned-terms test over all user-facing strings and store metadata; position is journaling + pattern awareness, which is the WOPR-exempt category |
-| 2 | **Model quality ceiling:** AFM 3 Core (~3B active, 8K ctx) yields repetitive reflections vs frontier-calibrated users | Reflection is the garnish, not the meal: capture speed + longitudinal recall are the core value; hierarchical summaries to stretch the window; persona + few-shot exemplars + anti-repetition checks against recent reflections; ship variety evals |
+| 2 | **Model quality ceiling:** the on-device model and 4K context can yield repetitive reflections | Reflection is the garnish, not the meal: capture speed + longitudinal recall are the core value; bounded summaries, structured output, and variety evals protect the experience |
 | 3 | **Guardrail refusals on the darkest entries** — product fails at the defining moment, with liability | SafetyKit deterministic gate runs *before* any model call; on match the model is suppressed and static localized crisis resources surface; a refusal can never be the user-facing response (tested with seeded fixtures) |
 | 4 | **Platform absorption:** Day One or Apple Journal flips on on-device reflections via the WWDC26 abstraction layer | Moat is the integrated loop incumbents won't ship quickly: voice-first capture + encrypted store + cited longitudinal reviews + lifetime pricing (cloud rivals can't match $0 marginal cost); ship M1–M2 fast and own the "verifiable" positioning before it commoditizes |
 | 5 | **Distribution without analytics or viral loops** (hard paywall, zero data collection, $30–80 CPIs) | Airplane-mode proof as launch content (HN/press/creator demos); ASO on voice-journaling + privacy keywords; SKAdNetwork-only aggregate measurement; lifetime tier as a press hook; treat Android as later land-grab, not launch scope |
 
-Secondary watch items: 8K context limits longitudinal claims (mitigated by summary-of-summaries; never promise "remembers everything"); Android NPU/API fragmentation (out of scope until iOS proves retention).
+Secondary watch items: the 4K context limits longitudinal claims (never promise "remembers everything"); Android NPU/API fragmentation remains out of scope until iOS proves retention.

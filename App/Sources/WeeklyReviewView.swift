@@ -3,6 +3,7 @@ import Foundation
 import JournalStore
 import ReflectKit
 import SafetyKit
+import StoreKit
 import SwiftUI
 
 /// Assembles the week from the store, runs it through the verified-citation
@@ -16,6 +17,8 @@ final class WeeklyReviewModel {
     private(set) var entriesByID: [UUID: Entry] = [:]
     /// Deterministic "when you wrote" fact for the week; nil under two entries.
     private(set) var rhythm: TimeRhythm?
+    /// Start of the reviewed window, kept for the share card's date line.
+    private(set) var weekStart: Date?
 
     private let store: any JournalStoring
     private let provider: any WeeklyReviewProviding
@@ -32,7 +35,7 @@ final class WeeklyReviewModel {
         calendar: Calendar = .current
     ) {
         self.store = store
-        // Synthesis is Pro (the inverted paywall); without it the provider
+        // Synthesis is Pro; without it the provider
         // reports unavailable and the review degrades to deterministic
         // themes-only counts — the crisis gate still runs first, unchanged.
         self.provider = synthesisAllowed ? provider : SynthesisWithheldProvider()
@@ -55,6 +58,7 @@ final class WeeklyReviewModel {
         }
 
         let weekStart = calendar.date(byAdding: .day, value: -windowDays, to: referenceDate) ?? referenceDate
+        self.weekStart = weekStart
         let weekEntries = entries.filter { $0.createdAt >= weekStart }
         entriesByID = Dictionary(weekEntries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
@@ -77,6 +81,25 @@ final class WeeklyReviewModel {
 
     func entry(for id: UUID) -> Entry? {
         entriesByID[id]
+    }
+
+    /// Theme words for the share card — words only, never an observation and
+    /// never a line the user wrote. `nil` wherever there is no picture worth
+    /// making: the crisis state (static resources only), and the empty states.
+    var shareableThemes: [String]? {
+        let themes: [String]
+        switch outcome {
+        case let .synthesized(draft): themes = draft.observations.map(\.theme)
+        case let .themesOnly(counts): themes = counts.map(\.theme)
+        case .suppressed, .unavailable, .none: return nil
+        }
+        return themes.isEmpty ? nil : themes
+    }
+
+    /// "18–25 Jul" for the card's date line, in the reader's locale.
+    var weekRangeText: String {
+        guard let weekStart else { return "" }
+        return (weekStart ..< referenceDate).formatted(.interval.day().month(.abbreviated))
     }
 
     /// Uses the summary precomputed and stored at save time (JournalStore.EntrySummary).
@@ -103,6 +126,8 @@ private struct SynthesisWithheldProvider: WeeklyReviewProviding {
 /// resources — never model text.
 struct WeeklyReviewView: View {
     @State private var model: WeeklyReviewModel
+    @State private var isSharing = false
+    @Environment(\.requestReview) private var requestReview
 
     init(model: WeeklyReviewModel) {
         _model = State(initialValue: model)
@@ -120,7 +145,27 @@ struct WeeklyReviewView: View {
         .background(Color.inwardPaper.ignoresSafeArea())
         .navigationTitle(Copy.weeklyReviewTitle)
         .inwardInlineTitle()
-        .task { await model.load() }
+        .task {
+            await model.load()
+            await askForReviewIfEarned()
+        }
+        .modifier(ShareThemesToolbar(themes: model.shareableThemes, range: model.weekRangeText, isSharing: $isSharing))
+    }
+
+    /// The one rating ask, at the one moment the app has demonstrably been
+    /// worth something: a week gathered into themes the user can tap back into.
+    /// Never in the crisis state, never twice, and never on a hollow week —
+    /// `ReviewPrompt` owns those rules so they can be tested without StoreKit.
+    private func askForReviewIfEarned() async {
+        let defaults = UserDefaults.standard
+        guard ReviewPrompt.shouldAsk(
+            for: model.outcome,
+            alreadyAsked: defaults.bool(forKey: Prefs.hasAskedForReview)
+        ) else { return }
+        defaults.set(true, forKey: Prefs.hasAskedForReview)
+        // Let the review land and be read before the system sheet arrives.
+        try? await Task.sleep(for: .seconds(ReviewPrompt.settleDelay))
+        requestReview()
     }
 
     @ViewBuilder private var content: some View {
@@ -178,7 +223,7 @@ struct WeeklyReviewView: View {
                     Text("“\(theme.theme)”")
                         .font(.lamplight(.entryProse))
                         .foregroundStyle(Color.inwardInk)
-                    Text(theme.count == 1 ? "in one entry" : "across \(theme.count) entries")
+                    Text(Copy.weeklyThemeEntryCount(theme.count))
                         .font(.lamplight(.caption))
                         .foregroundStyle(Color.inwardSage)
                     citations(theme.entryIds)
@@ -272,5 +317,24 @@ struct WeeklyReviewView: View {
             }
         }
         .padding(.top, Lamplight.Spacing.hairline)
+    }
+}
+
+/// Adds the share affordance only when there are theme words worth picturing.
+/// There is deliberately no share button in the crisis-suppressed state (static
+/// resources only, never a poster) or in the empty and unavailable states.
+private struct ShareThemesToolbar: ViewModifier {
+    let themes: [String]?
+    let range: String
+    @Binding var isSharing: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if let themes {
+            content.shareCardToolbar(isPresented: $isSharing) {
+                ThemesShareCard(themes: themes, dateRange: range)
+            }
+        } else {
+            content
+        }
     }
 }

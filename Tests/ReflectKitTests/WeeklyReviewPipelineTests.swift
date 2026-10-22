@@ -12,7 +12,7 @@ private enum Week {
     static let idC = UUID(uuidString: "00000000-0000-0000-0000-0000000000C3")!
 
     static func entry(_ id: UUID, _ offsetDays: Double, _ summary: String) -> ReviewableEntry {
-        ReviewableEntry(id: id, createdAt: Date(timeIntervalSince1970: offsetDays * 86_400), summary: summary)
+        ReviewableEntry(id: id, createdAt: Date(timeIntervalSince1970: offsetDays * 86400), summary: summary)
     }
 
     /// "garden" and "mornings" each recur across entries A and B; C is unrelated.
@@ -45,7 +45,9 @@ private actor ScriptedProvider: WeeklyReviewProviding {
         availabilityValue = availability
     }
 
-    nonisolated func availability() async -> ReflectionAvailability { availabilityValue }
+    nonisolated func availability() async -> ReflectionAvailability {
+        availabilityValue
+    }
 
     func review(for _: WeekContext) async throws -> WeeklyReviewDraft {
         defer { invocations += 1 }
@@ -234,5 +236,23 @@ struct WeeklyReviewPipelineTests {
         let names = Set(themes.map(\.theme))
         #expect(names.isDisjoint(with: ["coming", "really", "thinking", "about", "again", "something"]))
         #expect(names.contains("garden"), "a meaningful recurring word still surfaces")
+    }
+
+    @Test("localized filler words do not become German fallback themes")
+    func germanStopwordsAreNotThemes() {
+        let context = WeekContext(
+            weekStart: Date(timeIntervalSince1970: 0),
+            entries: [
+                Week.entry(Week.idA, 1, "Heute denke ich immer an meinen Garten."),
+                Week.entry(Week.idB, 2, "Heute war ich wieder im Garten, wie immer."),
+            ]
+        )
+
+        let themes = WeeklyReviewPipeline.recurringThemes(in: context, languageCode: "de")
+        let names = Set(themes.map(\.theme))
+
+        #expect(!names.contains("heute"))
+        #expect(!names.contains("immer"))
+        #expect(names.contains("garten"))
     }
 }

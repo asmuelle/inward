@@ -6,7 +6,7 @@ import Foundation
 public struct ReviewableEntry: Sendable, Equatable, Codable, Identifiable {
     public let id: UUID
     public let createdAt: Date
-    /// A short, precomputed summary of the entry (kept under the 8K window at save
+    /// A short, precomputed summary of the entry (kept under the 4K window at save
     /// time). The review reasons over summaries, never the full transcript corpus.
     public let summary: String
     /// IANA timezone the entry was captured in, when known. `createdAt` is UTC, so

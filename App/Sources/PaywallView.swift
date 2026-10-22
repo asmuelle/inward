@@ -47,10 +47,22 @@ struct PaywallView: View {
     }
 
     @ViewBuilder private var options: some View {
-        if model.products.isEmpty {
+        switch model.loadState {
+        case .idle, .loading:
             ProgressView().tint(.inwardClay)
                 .frame(maxWidth: .infinity)
-        } else {
+        case .failed:
+            VStack(spacing: Lamplight.Spacing.element) {
+                Text(Copy.paywallProductsUnavailable)
+                    .font(.lamplight(.entryProse))
+                    .foregroundStyle(Color.inwardInk)
+                    .multilineTextAlignment(.center)
+                Button(Copy.paywallRetry) { Task { await model.refresh() } }
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardClay)
+            }
+            .frame(maxWidth: .infinity)
+        case .loaded:
             VStack(spacing: Lamplight.Spacing.element) {
                 ForEach(model.products) { product in
                     optionButton(product)
@@ -71,7 +83,7 @@ struct PaywallView: View {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.hairline) {
                     Text(product.displayName)
                         .font(.lamplight(.entryProse))
-                    Text(product.kind == .lifetime ? Copy.paywallLifetimeNote : Copy.paywallTrialNote)
+                    Text(terms(for: product))
                         .font(.lamplight(.caption))
                         .foregroundStyle(highlighted ? Color.inwardPaper.opacity(0.85) : Color.inwardSage)
                 }
@@ -113,6 +125,12 @@ struct PaywallView: View {
                         .foregroundStyle(Color.inwardSage)
                 }
             }
+            if let message = errorMessage {
+                Text(message)
+                    .font(.lamplight(.caption))
+                    .foregroundStyle(Color.inwardClay)
+                    .multilineTextAlignment(.center)
+            }
             Button(Copy.paywallRestore) {
                 Task { await model.restore() }
             }
@@ -133,5 +151,50 @@ struct PaywallView: View {
             .foregroundStyle(Color.inwardClay)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var errorMessage: String? {
+        switch model.lastErrorMessage {
+        case "productsUnavailable": Copy.paywallProductsUnavailable
+        case "purchaseFailed": Copy.paywallPurchaseFailed
+        case "restoreFailed": Copy.paywallRestoreFailed
+        default: nil
+        }
+    }
+
+    private func terms(for product: PaywallProduct) -> String {
+        guard product.kind != .lifetime, let billing = product.billingPeriod else {
+            return Copy.paywallLifetimeNote
+        }
+        let unit = periodUnit(billing.unit)
+        if let offer = product.introductoryOffer {
+            return String(
+                format: Copy.paywallTrialTerms,
+                duration(offer.period),
+                product.displayPrice,
+                unit
+            )
+        }
+        return String(format: Copy.paywallRenews, product.displayPrice, unit)
+    }
+
+    private func periodUnit(_ unit: BillingPeriod.Unit) -> String {
+        switch unit {
+        case .day: Copy.periodDay
+        case .week: Copy.periodWeek
+        case .month: Copy.periodMonth
+        case .year: Copy.periodYear
+        }
+    }
+
+    private func duration(_ period: BillingPeriod) -> String {
+        if period.value == 1 { return "1 \(periodUnit(period.unit))" }
+        let format = switch period.unit {
+        case .day: Copy.durationDays
+        case .week: Copy.durationWeeks
+        case .month: Copy.durationMonths
+        case .year: Copy.durationYears
+        }
+        return String(format: format, period.value)
     }
 }

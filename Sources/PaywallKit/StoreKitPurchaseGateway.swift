@@ -10,7 +10,11 @@
 
         public func availableProducts() async throws -> [PaywallProduct] {
             let products = try await Self.loadProducts(for: InwardProduct.allCases.map(\.rawValue))
-            return products.compactMap(Self.paywallProduct)
+            var result: [PaywallProduct] = []
+            for product in products {
+                if let mapped = await Self.paywallProduct(product) { result.append(mapped) }
+            }
+            return result
         }
 
         public func purchase(_ productID: String) async throws -> PurchaseResult {
@@ -94,19 +98,51 @@
             }
         }
 
-        private static func paywallProduct(_ product: Product) -> PaywallProduct? {
+        private static func paywallProduct(_ product: Product) async -> PaywallProduct? {
             guard let kind = InwardProduct(rawValue: product.id) else { return nil }
             let resolvedKind: PaywallProduct.Kind = switch kind {
             case .monthly: .monthly
             case .annual: .annual
             case .lifetime: .lifetime
             }
+            let subscription = product.subscription
+            let mappedBillingPeriod: BillingPeriod? = if let subscription {
+                Self.billingPeriod(subscription.subscriptionPeriod)
+            } else {
+                nil
+            }
+            let introductoryOffer: IntroductoryOffer?
+            if let subscription,
+               await subscription.isEligibleForIntroOffer,
+               let offer = subscription.introductoryOffer,
+               offer.paymentMode == .freeTrial
+            {
+                let base = Self.billingPeriod(offer.period)
+                introductoryOffer = IntroductoryOffer(
+                    period: BillingPeriod(value: base.value * offer.periodCount, unit: base.unit)
+                )
+            } else {
+                introductoryOffer = nil
+            }
             return PaywallProduct(
                 id: product.id,
                 displayName: product.displayName,
                 displayPrice: product.displayPrice,
-                kind: resolvedKind
+                kind: resolvedKind,
+                billingPeriod: mappedBillingPeriod,
+                introductoryOffer: introductoryOffer
             )
+        }
+
+        private static func billingPeriod(_ period: Product.SubscriptionPeriod) -> BillingPeriod {
+            let unit: BillingPeriod.Unit = switch period.unit {
+            case .day: .day
+            case .week: .week
+            case .month: .month
+            case .year: .year
+            @unknown default: .month
+            }
+            return BillingPeriod(value: period.value, unit: unit)
         }
     }
 #endif

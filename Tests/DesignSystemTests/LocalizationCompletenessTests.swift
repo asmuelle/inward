@@ -20,6 +20,9 @@ struct LocalizationCompletenessTests {
     func pluralPlaceholderPreserved() {
         for (code, table) in Localized.tables {
             #expect(table["importDoneMany"]?.contains("%d") == true, "\(code) lost %d")
+            #expect(table["weeklyThemeCountMany"]?.contains("%d") == true, "\(code) lost weekly %d")
+            #expect(table["paywallRenews"]?.count(where: { $0 == "%" }) == 2, "\(code) changed renewal placeholders")
+            #expect(table["paywallTrialTerms"]?.count(where: { $0 == "%" }) == 3, "\(code) changed trial placeholders")
         }
     }
 

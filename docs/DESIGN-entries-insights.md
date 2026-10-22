@@ -21,7 +21,7 @@ These already hold in the codebase and must continue to:
   `NaturalLanguage` are on-device; the `NoEgress` test harness must still pass.
 - **#4 — encrypted at rest.** New tables live in the same SQLCipher database.
 - **#8 — reading/export never paywalled.** Maintenance (delete/edit) and viewing
-  insights are free; only *new authored content* is gated by the trial.
+  saved content are free; new authored content is gated after the three-entry sample.
 - **#9 — model-optional.** Every AI feature degrades to a deterministic path when
   Apple Intelligence is unavailable. Extraction falls back to `NLTagger` NER.
 - **Verified, not fabricated.** Like the weekly review's verified citations, any

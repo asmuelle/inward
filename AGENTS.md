@@ -2,7 +2,7 @@
 
 ## Project Snapshot
 
-Inward is a voice-first, verifiably airplane-mode-functional journaling app for iOS. Spoken thoughts are transcribed on-device (SpeechTranscriber), reflected on by an on-device model (FoundationModels AFM 3 Core), and stored only on the phone in a SQLCipher-encrypted database. Who pays: therapy-curious 25–45s currently paying Mindsera/Rosebud/Day One prices, via a hard paywall after a 7-day trial ($9.99/mo, $59.99/yr annual-first, $129.99 lifetime). Pipeline status: **recommended** (#2 of 9 finalists in the edge-AI run).
+Inward is a voice-first, verifiably airplane-mode-functional journaling app for iOS. Spoken thoughts are transcribed on-device (SpeechTranscriber), reflected on by an on-device model (FoundationModels AFM 3 Core), and stored only on the phone in a SQLCipher-encrypted database. Who pays: therapy-curious 25–45s currently paying Mindsera/Rosebud/Day One prices, via an insight paywall — capture is free forever, generated insight is paid ($6.99/mo, $39.99/yr annual-first, $79.99 lifetime). Pipeline status: **recommended** (#2 of 9 finalists in the edge-AI run).
 
 It is positioned strictly as **reflective journaling and pattern awareness**. It is not, and must never be described or built as, therapy or CBT. See Product Invariants below — they override everything else.
 

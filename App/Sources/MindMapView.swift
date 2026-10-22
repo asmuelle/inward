@@ -2,6 +2,7 @@ import DesignSystem
 import Foundation
 import JournalStore
 import RecallKit
+import ReflectKit
 import SwiftUI
 
 /// Loads the entity graph and exposes the kind filter + node selection. Read-only.
@@ -44,13 +45,19 @@ final class MindMapModel {
     }
 
     func toggle(_ kind: EntityKind) {
-        if activeKinds.contains(kind) { activeKinds.remove(kind) } else { activeKinds.insert(kind) }
+        if activeKinds.contains(kind) {
+            activeKinds.remove(kind)
+        } else {
+            activeKinds.insert(kind)
+        }
     }
 
     func loadEntries(for node: EntityGraph.Node) async {
         var entries: [Entry] = []
         for id in node.entryIDs {
-            if let entry = try? await store.entry(id: id) { entries.append(entry) }
+            if let entry = try? await store.entry(id: id) {
+                entries.append(entry)
+            }
         }
         selectedEntries = entries.sorted { $0.createdAt > $1.createdAt }
     }
@@ -61,33 +68,35 @@ final class MindMapModel {
 /// entries it came from — it always points back at the user's own words.
 enum MindMapMode: Hashable { case map, list }
 
+/// Which map is on screen: the extracted names constellation (deterministic,
+/// always available) or the Threads map the on-device model draws on request.
+enum MindMapSource: Hashable { case names, threads }
+
 struct MindMapView: View {
     @State private var model: MindMapModel
     @State private var presentedNode: EntityGraph.Node?
+    @State private var source: MindMapSource = .names
     @State private var mode: MindMapMode = .map
+    @State private var isSharing = false
     private let store: any JournalStoring
+    private let mapProvider: any MindMapProviding
+    private let synthesisAllowed: Bool
 
-    init(store: any JournalStoring) {
+    init(store: any JournalStoring, mapProvider: any MindMapProviding, synthesisAllowed: Bool) {
         self.store = store
+        self.mapProvider = mapProvider
+        self.synthesisAllowed = synthesisAllowed
         _model = State(initialValue: MindMapModel(store: store))
     }
 
     var body: some View {
         VStack(spacing: Lamplight.Spacing.element) {
-            kindFilterBar
-            if model.graph.isEmpty {
-                emptyState
-            } else {
-                searchField
-                modePicker
-                switch mode {
-                case .map:
-                    GeometryReader { proxy in
-                        graphArea(in: proxy.size)
-                    }
-                case .list:
-                    nodeList
-                }
+            sourcePicker
+            switch source {
+            case .names:
+                namesContent
+            case .threads:
+                GeneratedMindMapView(store: store, provider: mapProvider, synthesisAllowed: synthesisAllowed)
             }
         }
         .padding(.top, Lamplight.Spacing.element)
@@ -97,6 +106,37 @@ struct MindMapView: View {
         .task { await model.load() }
         .sheet(item: $presentedNode) { node in
             NodeEntriesSheet(node: node, model: model, store: store)
+        }
+        // The share card pictures the names constellation only; the Threads
+        // map carries the user's own words, which never leave the phone.
+        .modifier(ShareMapToolbar(graph: source == .names ? model.graph : .empty, isSharing: $isSharing))
+    }
+
+    private var sourcePicker: some View {
+        Picker(Copy.mindMapTitle, selection: $source) {
+            Text(Copy.mindMapSourceNames).tag(MindMapSource.names)
+            Text(Copy.mindMapSourceThreads).tag(MindMapSource.threads)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .padding(.horizontal, Lamplight.Spacing.block)
+    }
+
+    @ViewBuilder private var namesContent: some View {
+        kindFilterBar
+        if model.graph.isEmpty {
+            emptyState
+        } else {
+            searchField
+            modePicker
+            switch mode {
+            case .map:
+                GeometryReader { proxy in
+                    graphArea(in: proxy.size)
+                }
+            case .list:
+                nodeList
+            }
         }
     }
 
@@ -353,6 +393,24 @@ private struct NodeEntriesSheet: View {
             .inwardInlineTitle()
             .navigationDestination(for: Entry.self) { entry in
                 EntryDetailView(entry: entry, store: store)
+            }
+        }
+    }
+}
+
+/// The share affordance appears only once there is a map to picture. The card
+/// always draws the whole graph, not the filtered view — a shared picture of a
+/// search result would misrepresent the month.
+private struct ShareMapToolbar: ViewModifier {
+    let graph: EntityGraph
+    @Binding var isSharing: Bool
+
+    func body(content: Content) -> some View {
+        if graph.isEmpty {
+            content
+        } else {
+            content.shareCardToolbar(isPresented: $isSharing) {
+                MindMapShareCard(graph: graph)
             }
         }
     }

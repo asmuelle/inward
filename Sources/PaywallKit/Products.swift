@@ -7,7 +7,9 @@ public enum InwardProduct: String, CaseIterable, Sendable {
     case annual = "app.inward.subscription.annual"
     case lifetime = "app.inward.lifetime"
 
-    public var isSubscription: Bool { self != .lifetime }
+    public var isSubscription: Bool {
+        self != .lifetime
+    }
 }
 
 /// A purchasable, display-ready product. The gateway resolves StoreKit `Product`s
@@ -23,12 +25,44 @@ public struct PaywallProduct: Sendable, Equatable, Identifiable {
     public let displayName: String
     public let displayPrice: String
     public let kind: Kind
+    public let billingPeriod: BillingPeriod?
+    /// Present only when StoreKit says this customer is eligible for a free trial.
+    public let introductoryOffer: IntroductoryOffer?
 
-    public init(id: String, displayName: String, displayPrice: String, kind: Kind) {
+    public init(
+        id: String,
+        displayName: String,
+        displayPrice: String,
+        kind: Kind,
+        billingPeriod: BillingPeriod? = nil,
+        introductoryOffer: IntroductoryOffer? = nil
+    ) {
         self.id = id
         self.displayName = displayName
         self.displayPrice = displayPrice
         self.kind = kind
+        self.billingPeriod = billingPeriod
+        self.introductoryOffer = introductoryOffer
+    }
+}
+
+public struct BillingPeriod: Sendable, Equatable {
+    public enum Unit: Sendable, Equatable { case day, week, month, year }
+
+    public let value: Int
+    public let unit: Unit
+
+    public init(value: Int, unit: Unit) {
+        self.value = value
+        self.unit = unit
+    }
+}
+
+public struct IntroductoryOffer: Sendable, Equatable {
+    public let period: BillingPeriod
+
+    public init(period: BillingPeriod) {
+        self.period = period
     }
 }
 
@@ -36,6 +70,7 @@ public enum PurchaseResult: Sendable, Equatable {
     case success
     case userCancelled
     case pending
+    case failed
 }
 
 public enum PurchaseError: Error, Equatable {
@@ -62,9 +97,23 @@ public protocol PurchaseGateway: Sendable {
 public extension PaywallProduct {
     /// Sample products for previews and tests, in the annual-first display order.
     static let samples: [PaywallProduct] = [
-        PaywallProduct(id: InwardProduct.annual.rawValue, displayName: "Yearly", displayPrice: "$59.99", kind: .annual),
-        PaywallProduct(id: InwardProduct.monthly.rawValue, displayName: "Monthly", displayPrice: "$9.99", kind: .monthly),
-        PaywallProduct(id: InwardProduct.lifetime.rawValue, displayName: "Lifetime", displayPrice: "$129.99", kind: .lifetime),
+        PaywallProduct(
+            id: InwardProduct.annual.rawValue,
+            displayName: "Yearly",
+            displayPrice: "$39.99",
+            kind: .annual,
+            billingPeriod: BillingPeriod(value: 1, unit: .year),
+            introductoryOffer: IntroductoryOffer(period: BillingPeriod(value: 1, unit: .week))
+        ),
+        PaywallProduct(
+            id: InwardProduct.monthly.rawValue,
+            displayName: "Monthly",
+            displayPrice: "$6.99",
+            kind: .monthly,
+            billingPeriod: BillingPeriod(value: 1, unit: .month),
+            introductoryOffer: IntroductoryOffer(period: BillingPeriod(value: 1, unit: .week))
+        ),
+        PaywallProduct(id: InwardProduct.lifetime.rawValue, displayName: "Lifetime", displayPrice: "$79.99", kind: .lifetime),
     ]
 }
 
@@ -88,16 +137,22 @@ public actor MockPurchaseGateway: PurchaseGateway {
         self.purchaseResult = purchaseResult
     }
 
-    public func availableProducts() async throws -> [PaywallProduct] { products }
+    public func availableProducts() async throws -> [PaywallProduct] {
+        products
+    }
 
     public func purchase(_ productID: String) async throws -> PurchaseResult {
         if purchaseResult == .success { owned.insert(productID) }
         return purchaseResult
     }
 
-    public func restore() async throws { owned.formUnion(restorable) }
+    public func restore() async throws {
+        owned.formUnion(restorable)
+    }
 
-    public func ownedProductIDs() async -> Set<String> { owned }
+    public func ownedProductIDs() async -> Set<String> {
+        owned
+    }
 
     public nonisolated func entitlementUpdates() -> AsyncStream<Void> {
         AsyncStream { $0.finish() }

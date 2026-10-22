@@ -1,64 +1,44 @@
-import Foundation
 @testable import PaywallKit
 import Testing
 
-private let calendar = Calendar(identifier: .gregorian)
-private let trialStart = Date(timeIntervalSince1970: 1_750_000_000)
-
-private func daysLater(_ days: Int) -> Date {
-    calendar.date(byAdding: .day, value: days, to: trialStart)!
-}
-
-@Suite("EntitlementPolicy — trial math and the never-paywalled rules")
+@Suite("EntitlementPolicy — StoreKit ownership and free-sample rules")
 struct EntitlementPolicyTests {
-    @Test("day zero is a full trial")
-    func dayZeroTrial() {
-        // Act
-        let state = EntitlementPolicy.state(trialStartedAt: trialStart, now: trialStart)
-
-        // Assert
-        #expect(state == .trial(daysRemaining: 7))
+    @Test("no StoreKit ownership is expired; there is no second local trial")
+    func noLocalTrial() {
+        #expect(EntitlementPolicy.state(ownedProductIDs: []) == .expired)
     }
 
-    @Test("day six is the last trial day, day seven expires")
-    func trialBoundary() {
-        #expect(EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(6)) == .trial(daysRemaining: 1))
-        #expect(EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(7)) == .expired)
-        #expect(EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(40)) == .expired)
+    @Test("subscription and lifetime ownership unlock paid features")
+    func purchasesUnlock() {
+        #expect(EntitlementPolicy.state(ownedProductIDs: [InwardProduct.monthly.rawValue]) == .active)
+        #expect(EntitlementPolicy.state(ownedProductIDs: [InwardProduct.annual.rawValue]) == .active)
+        #expect(EntitlementPolicy.state(ownedProductIDs: [InwardProduct.lifetime.rawValue]) == .lifetime)
     }
 
-    @Test("subscription and lifetime override the trial clock")
-    func purchasesOverride() {
-        #expect(
-            EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(30), hasActiveSubscription: true) == .active
-        )
-        #expect(
-            EntitlementPolicy.state(trialStartedAt: trialStart, now: daysLater(400), hasLifetime: true) == .lifetime
-        )
-    }
-
-    @Test("the inverted paywall: capture stays free in every state, including expired")
-    func captureNeverPaywalled() {
-        let states: [EntitlementState] = [.trial(daysRemaining: 2), .active, .lifetime, .expired]
-        for state in states {
-            #expect(EntitlementPolicy.isCaptureAllowed(state), "capture must stay free in \(state)")
+    @Test("capture is free in every state — the paid tier is generated insight")
+    func captureIsNeverPaywalled() {
+        for state in [EntitlementState.active, .lifetime, .expired] {
+            #expect(EntitlementPolicy.isCaptureAllowed(state))
         }
-    }
-
-    @Test("the insight layer locks when expired, stays open otherwise")
-    func insightGating() {
-        #expect(EntitlementPolicy.isInsightAllowed(.trial(daysRemaining: 2)))
+        // …and insight is exactly what ownership buys.
+        #expect(!EntitlementPolicy.isInsightAllowed(.expired))
         #expect(EntitlementPolicy.isInsightAllowed(.active))
         #expect(EntitlementPolicy.isInsightAllowed(.lifetime))
-        #expect(!EntitlementPolicy.isInsightAllowed(.expired))
     }
 
-    @Test("invariant #8: reading and export are allowed in every state, including expired")
+    @Test("the first look appears once when the third entry is saved")
+    func firstLookThreshold() {
+        #expect(FreeSamplePolicy.shouldPresentFirstLook(previousCount: 2, currentCount: 3, alreadyShown: false))
+        #expect(!FreeSamplePolicy.shouldPresentFirstLook(previousCount: 3, currentCount: 4, alreadyShown: false))
+        #expect(!FreeSamplePolicy.shouldPresentFirstLook(previousCount: 2, currentCount: 3, alreadyShown: true))
+    }
+
+    @Test("reading and export are allowed in every state")
     func readingAndExportNeverPaywalled() {
-        let states: [EntitlementState] = [.trial(daysRemaining: 1), .active, .lifetime, .expired]
+        let states: [EntitlementState] = [.active, .lifetime, .expired]
         for state in states {
-            #expect(EntitlementPolicy.isReadingAllowed(state), "reading must stay free in \(state)")
-            #expect(EntitlementPolicy.isExportAllowed(state), "export must stay free in \(state)")
+            #expect(EntitlementPolicy.isReadingAllowed(state))
+            #expect(EntitlementPolicy.isExportAllowed(state))
         }
     }
 }

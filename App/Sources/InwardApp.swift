@@ -32,15 +32,16 @@ struct InwardApp: App {
             RootView(
                 store: store,
                 engine: Self.makeEngine(),
+                reflectionProvider: Self.makeReflectionProvider(),
                 reviewProvider: Self.makeReviewProvider(),
                 questionProvider: Self.makeQuestionProvider(),
+                mapProvider: Self.makeMapProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
                 embedder: SentenceTextEmbedder(),
                 summaryProvider: Self.makeSummaryProvider(),
                 synthesizer: Self.makeSynthesizer(),
                 authenticator: LocalAuthenticationAuthenticator(),
-                purchaseGateway: StoreKitPurchaseGateway(),
-                trialStartedAt: Prefs.trialStart()
+                purchaseGateway: StoreKitPurchaseGateway()
             )
         }
     }
@@ -59,6 +60,19 @@ struct InwardApp: App {
         FoundationModelsJournalQuestionProvider()
     }
 
+    /// On-device Threads map drawing via FoundationModels. When Apple
+    /// Intelligence is unavailable the map degrades to deterministic recurring
+    /// themes (handled in the pipeline), so the surface is never empty.
+    private static func makeMapProvider() -> any MindMapProviding {
+        FoundationModelsMindMapProvider()
+    }
+
+    /// Per-entry questions use the same on-device model and are always reached
+    /// through ReflectionPipeline's deterministic safety gate.
+    private static func makeReflectionProvider() -> any ReflectionProviding {
+        FoundationModelsReflectionProvider()
+    }
+
     /// Entity/topic extraction for the background indexer: Apple Intelligence when
     /// present, the deterministic NaturalLanguage floor otherwise. The indexer also
     /// falls back per-run if the model turns out unavailable (invariant #9).
@@ -70,23 +84,24 @@ struct InwardApp: App {
     }
 
     /// The SQLCipher-encrypted journal database in Application Support, keyed from
-    /// the device keychain. If the database cannot be opened, journaling must still
-    /// work, so it falls back to the M1 encrypted file store (invariant #9).
+    /// the device keychain. A legacy M1 store migrates before first use. If the
+    /// database cannot open, fail closed instead of creating a second data silo.
     private static func makeStore() -> any JournalStoring {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             .map { $0.appendingPathComponent("Inward", isDirectory: true) }
             ?? FileManager.default.temporaryDirectory.appendingPathComponent("Inward", isDirectory: true)
         let keyProvider = KeychainKeyProvider()
         do {
-            return try SQLCipherJournalStore(
+            let database = try SQLCipherJournalStore(
                 fileURL: directory.appendingPathComponent("journal.db"),
                 keyProvider: keyProvider
             )
+            let legacyURL = directory.appendingPathComponent("journal.inward")
+            let legacy = EncryptedFileJournalStore(fileURL: legacyURL, keyProvider: keyProvider)
+            return MigratingJournalStore(destination: database, legacy: legacy, legacyFileURL: legacyURL)
         } catch {
-            return EncryptedFileJournalStore(
-                fileURL: directory.appendingPathComponent("journal.inward"),
-                keyProvider: keyProvider
-            )
+            let storeError = error as? JournalStoreError ?? .ioFailure("encrypted database unavailable")
+            return UnavailableJournalStore(error: storeError)
         }
     }
 

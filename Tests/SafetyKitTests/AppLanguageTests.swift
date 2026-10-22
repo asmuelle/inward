@@ -52,4 +52,12 @@ struct AppLanguageTests {
         }
         #expect(AppLanguage.endonym(for: "de") == "Deutsch")
     }
+
+    @Test("generated insights expose a narrower language capability than the UI")
+    func generatedInsightCapability() {
+        #expect(AppLanguage.supportsGeneratedInsights("de"))
+        #expect(AppLanguage.supportsGeneratedInsights("en"))
+        #expect(!AppLanguage.supportsGeneratedInsights("ru"))
+        #expect(AppLanguage.supportedCodes.contains("ru"), "Russian UI and text entry remain available")
+    }
 }

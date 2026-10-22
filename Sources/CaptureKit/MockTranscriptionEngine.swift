@@ -10,16 +10,13 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
     private let finalTranscript: String
     private let finalConfidence: Double
     private let reportedAvailability: TranscriptionAvailability
-    private var reportedReadiness: TranscriptionAssetReadiness
+    private let reportedReadiness: TranscriptionAssetReadiness
     private var continuation: AsyncThrowingStream<TranscriptSegment, Error>.Continuation?
     private var interruptionStream: AsyncStream<CaptureInterruption>?
     private var interruptionContinuation: AsyncStream<CaptureInterruption>.Continuation?
 
-    /// Test inspection: whether the recording path was ever entered, and whether
-    /// the model was explicitly prepared. Lets tests prove recording never starts
-    /// (nor downloads) until assets are installed.
+    /// Test inspection: whether the recording path was ever entered.
     public private(set) var didStart = false
-    public private(set) var didPrepare = false
     /// Test inspection: how many times capture was (re)started — a resumed
     /// recording after an interruption counts again.
     public private(set) var startCount = 0
@@ -46,12 +43,6 @@ public actor MockTranscriptionEngine: TranscriptionEngine {
 
     public func assetReadiness() async -> TranscriptionAssetReadiness {
         reportedReadiness
-    }
-
-    public func prepareAssets() async throws {
-        didPrepare = true
-        // A successful download leaves the model installed for the next recording.
-        reportedReadiness = .installed
     }
 
     public func start() async throws -> AsyncThrowingStream<TranscriptSegment, Error> {

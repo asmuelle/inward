@@ -12,6 +12,7 @@ struct ProofView: View {
     let onTryCapture: () -> Void
 
     @State private var connectivity = ConnectivityMonitor()
+    @State private var isSharing = false
 
     var body: some View {
         ScrollView {
@@ -27,6 +28,11 @@ struct ProofView: View {
         .inwardInlineTitle()
         .task { connectivity.start() }
         .onDisappear { connectivity.stop() }
+        // The card states the live offline reading at the moment it is made —
+        // the claim on the picture has to be true when the picture is taken.
+        .shareCardToolbar(isPresented: $isSharing) {
+            ProofShareCard(isOffline: connectivity.isOffline)
+        }
     }
 
     private var liveStatusCard: some View {

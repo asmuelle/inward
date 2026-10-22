@@ -49,7 +49,10 @@
         }
 
         public func availability() async -> ReflectionAvailability {
-            switch SystemLanguageModel.default.availability {
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
+                return .unavailable(reason: "language not supported for generated insights")
+            }
+            return switch SystemLanguageModel.default.availability {
             case .available:
                 .available
             case let .unavailable(reason):
@@ -59,6 +62,9 @@
 
         public func review(for context: WeekContext) async throws -> WeeklyReviewDraft {
             guard case .available = SystemLanguageModel.default.availability else {
+                throw ReflectionError.modelUnavailable
+            }
+            guard AppLanguage.supportsGeneratedInsights(AppLanguage.resolved().code) else {
                 throw ReflectionError.modelUnavailable
             }
 

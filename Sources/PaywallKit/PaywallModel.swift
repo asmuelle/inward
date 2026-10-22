@@ -1,59 +1,52 @@
 import Foundation
 
-/// Drives the paywall and the app's lock state: loads products, runs purchase and
-/// restore through the gateway, and derives the entitlement from owned products
-/// plus the trial clock via the pure `EntitlementPolicy`. UI-facing, so it lives
-/// on the main actor; testable on macOS because the gateway is a protocol.
+private enum PaywallModelError: Error { case noProducts }
+
+public enum PaywallLoadState: Sendable, Equatable {
+    case idle
+    case loading
+    case loaded
+    case failed
+}
+
 @MainActor
 @Observable
 public final class PaywallModel {
     public private(set) var products: [PaywallProduct] = []
-    public private(set) var entitlement: EntitlementState
+    public private(set) var entitlement: EntitlementState = .expired
+    public private(set) var loadState: PaywallLoadState = .idle
     public private(set) var isWorking = false
     public private(set) var lastErrorMessage: String?
 
     private let gateway: any PurchaseGateway
-    private let trialStartedAt: Date
-    private let now: @Sendable () -> Date
-    private let calendar: Calendar
 
-    public init(
-        gateway: any PurchaseGateway,
-        trialStartedAt: Date,
-        now: @escaping @Sendable () -> Date = { Date() },
-        calendar: Calendar = Calendar(identifier: .gregorian)
-    ) {
+    public init(gateway: any PurchaseGateway) {
         self.gateway = gateway
-        self.trialStartedAt = trialStartedAt
-        self.now = now
-        self.calendar = calendar
-        entitlement = EntitlementPolicy.state(
-            trialStartedAt: trialStartedAt,
-            now: now(),
-            ownedProductIDs: [],
-            calendar: calendar
-        )
     }
 
-    /// The insight surfaces (weekly review synthesis, mind map, tag
-    /// suggestions, spoken recap) are gated when the trial has lapsed without a
-    /// purchase. Capture, reading, and export are never gated — the inverted
-    /// paywall sells the understanding layer, not the writing habit.
+    /// Deliberately absent: there is no `isCaptureLocked`. Capture is free in
+    /// every entitlement state, so a property that is always `false` would only
+    /// invite call sites to gate on it again.
     public var isInsightLocked: Bool {
         !EntitlementPolicy.isInsightAllowed(entitlement)
     }
 
-    /// Load products and recompute entitlement from current ownership.
     public func refresh() async {
-        let loaded = await (try? gateway.availableProducts()) ?? []
-        let owned = await gateway.ownedProductIDs()
-        products = Self.annualFirst(loaded)
-        entitlement = EntitlementPolicy.state(
-            trialStartedAt: trialStartedAt,
-            now: now(),
-            ownedProductIDs: owned,
-            calendar: calendar
-        )
+        loadState = .loading
+        lastErrorMessage = nil
+        do {
+            let loaded = try await gateway.availableProducts()
+            guard !loaded.isEmpty else { throw PaywallModelError.noProducts }
+            let owned = await gateway.ownedProductIDs()
+            products = Self.annualFirst(loaded)
+            entitlement = EntitlementPolicy.state(ownedProductIDs: owned)
+            loadState = .loaded
+        } catch {
+            products = []
+            entitlement = await EntitlementPolicy.state(ownedProductIDs: gateway.ownedProductIDs())
+            lastErrorMessage = "productsUnavailable"
+            loadState = .failed
+        }
     }
 
     @discardableResult
@@ -63,19 +56,17 @@ public final class PaywallModel {
         defer { isWorking = false }
         do {
             let result = try await gateway.purchase(productID)
-            await refresh()
+            await refreshEntitlement()
             return result
         } catch {
-            lastErrorMessage = String(describing: error)
-            return .pending
+            lastErrorMessage = "purchaseFailed"
+            return .failed
         }
     }
 
-    /// Long-lived: re-derives entitlement whenever StoreKit reports a change
-    /// (renewal, refund, out-of-band purchase). Start once at launch.
     public func observeUpdates() async {
         for await _ in gateway.entitlementUpdates() {
-            await refresh()
+            await refreshEntitlement()
         }
     }
 
@@ -85,13 +76,16 @@ public final class PaywallModel {
         defer { isWorking = false }
         do {
             try await gateway.restore()
-            await refresh()
+            await refreshEntitlement()
         } catch {
-            lastErrorMessage = String(describing: error)
+            lastErrorMessage = "restoreFailed"
         }
     }
 
-    /// Annual highlighted first, then monthly, then lifetime.
+    private func refreshEntitlement() async {
+        entitlement = await EntitlementPolicy.state(ownedProductIDs: gateway.ownedProductIDs())
+    }
+
     static func annualFirst(_ products: [PaywallProduct]) -> [PaywallProduct] {
         func rank(_ kind: PaywallProduct.Kind) -> Int {
             switch kind {

@@ -36,14 +36,14 @@ final class ExportModel {
                     transcriptions.append(transcription)
                 }
             }
-            let data = try JournalExporter.archiveData(
+            let data = try await JournalExporter.archiveDataAsync(
                 entries: entries,
                 transcriptions: transcriptions,
                 exportedAt: Date(),
                 passphrase: passphrase,
                 iterations: iterations
             )
-            phase = .ready(try write(data))
+            phase = try .ready(write(data))
         } catch ExportError.emptyPassphrase {
             phase = .failed(Copy.exportPassphraseRequired)
         } catch {

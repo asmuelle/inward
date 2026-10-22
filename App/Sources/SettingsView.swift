@@ -1,4 +1,8 @@
+import CaptureKit
 import DesignSystem
+#if canImport(FoundationModels)
+    import FoundationModels
+#endif
 import JournalStore
 import QuickCaptureKit
 import SafetyKit
@@ -8,6 +12,7 @@ import SwiftUI
 /// quiet restatement of what Inward never does.
 struct SettingsView: View {
     let store: any JournalStoring
+    let engine: (any TranscriptionEngine)?
 
     @AppStorage(AppLanguage.preferenceKey) private var languageCode = AppLanguage.systemValue
     @AppStorage(Prefs.lockEnabled) private var lockEnabled = false
@@ -20,12 +25,19 @@ struct SettingsView: View {
     @State private var showingExport = false
     @State private var showingImport = false
     @State private var reminderDenied = false
+    @State private var voiceReadiness: TranscriptionAssetReadiness?
+
+    init(store: any JournalStoring, engine: (any TranscriptionEngine)? = nil) {
+        self.store = store
+        self.engine = engine
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Lamplight.Spacing.section) {
                     languageSection
+                    capabilitySection
                     lockSection
                     spokenSummarySection
                     weeklyReminderSection
@@ -61,6 +73,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showingImport) {
                 ImportView(store: store)
             }
+            .task {
+                voiceReadiness = await engine?.assetReadiness()
+            }
         }
     }
 
@@ -85,11 +100,65 @@ struct SettingsView: View {
                     .font(.lamplight(.caption))
                     .foregroundStyle(Color.inwardSage)
                     .fixedSize(horizontal: false, vertical: true)
+                if !AppLanguage.supportsGeneratedInsights(selectedLanguageCode) {
+                    Text(Copy.settingsGeneratedInsightsUnavailable)
+                        .font(.lamplight(.caption))
+                        .foregroundStyle(Color.inwardClay)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         // Apply immediately so any freshly rendered copy follows; transcription,
         // the spoken recap, and the model resolve the same choice on next use.
         .onChange(of: languageCode) { _, _ in Localized.override = AppLanguage.selection() }
+    }
+
+    private var selectedLanguageCode: String {
+        languageCode == AppLanguage.systemValue ? AppLanguage.resolved().code : languageCode
+    }
+
+    private var capabilitySection: some View {
+        PaperCard {
+            VStack(alignment: .leading, spacing: Lamplight.Spacing.tight) {
+                Text(Copy.settingsCapabilityTitle)
+                    .font(.lamplight(.chrome))
+                    .foregroundStyle(Color.inwardInk)
+                capabilityRow(icon: "lock.fill", text: Copy.settingsCapabilityWriting)
+                capabilityRow(icon: "waveform", text: voiceCapabilityText)
+                capabilityRow(icon: "sparkles", text: generatedInsightCapabilityText)
+            }
+        }
+    }
+
+    private func capabilityRow(icon: String, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Lamplight.Spacing.tight) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.inwardClay)
+            Text(text)
+                .font(.lamplight(.caption))
+                .foregroundStyle(Color.inwardSage)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var voiceCapabilityText: String {
+        switch voiceReadiness {
+        case .installed: Copy.settingsCapabilityVoiceReady
+        case .missingAsset: Copy.settingsCapabilityVoiceMissing
+        case .unsupported, .none: Copy.settingsCapabilityVoiceUnavailable
+        }
+    }
+
+    private var generatedInsightCapabilityText: String {
+        guard AppLanguage.supportsGeneratedInsights(selectedLanguageCode) else {
+            return Copy.settingsGeneratedInsightsUnavailable
+        }
+        #if canImport(FoundationModels)
+            if #available(iOS 26.0, macOS 26.0, *), case .available = SystemLanguageModel.default.availability {
+                return Copy.settingsCapabilityInsightsReady
+            }
+        #endif
+        return Copy.settingsCapabilityInsightsUnavailable
     }
 
     private var lockSection: some View {

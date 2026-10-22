@@ -25,6 +25,7 @@ just screenshots # or: scripts/screenshots.sh "iPhone 17 Pro"
 | `10-share-proof.png` | Share card — the offline proof |
 | `11-share-themes.png` | Share card — the week in words |
 | `12-share-mindmap.png` | Share card — the constellation |
+| `13-threads-map.png` | Mind map — the Threads source, a month drawn as one cited tree |
 
 ## App Store screenshot order (not the same as this file order)
 

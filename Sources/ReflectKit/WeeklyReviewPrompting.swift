@@ -54,13 +54,23 @@ extension WeeklyReviewPrompting {
         tokenBudget: Int,
         charactersPerToken ratio: Int = TokenBudgeter.charactersPerToken
     ) -> String {
-        let full = entryList(for: context)
-        guard !context.entries.isEmpty,
+        entryList(context.entries, tokenBudget: tokenBudget, charactersPerToken: ratio)
+    }
+
+    /// The same fitting over a plain entry list, shared with the mind map
+    /// provider, which lists a month the way the review lists a week.
+    static func entryList(
+        _ entries: [ReviewableEntry],
+        tokenBudget: Int,
+        charactersPerToken ratio: Int = TokenBudgeter.charactersPerToken
+    ) -> String {
+        let full = entryList(entries)
+        guard !entries.isEmpty,
               TokenBudgeter.estimateTokens(full, charactersPerToken: ratio) > tokenBudget
         else { return full }
 
-        let perEntry = max(1, tokenBudget / context.entries.count - numberingOverheadTokens)
-        let trimmed = context.entries.map { entry in
+        let perEntry = max(1, tokenBudget / entries.count - numberingOverheadTokens)
+        let trimmed = entries.map { entry in
             ReviewableEntry(
                 id: entry.id,
                 createdAt: entry.createdAt,
@@ -68,6 +78,6 @@ extension WeeklyReviewPrompting {
                 timeZone: entry.timeZone
             )
         }
-        return entryList(for: WeekContext(weekStart: context.weekStart, entries: trimmed))
+        return entryList(trimmed)
     }
 }

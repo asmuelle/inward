@@ -175,5 +175,16 @@ extension Translations {
         "shareProofBody": "Сказанное или написанное остаётся на устройстве, которое слушало. Можешь проверить: выключи всё — он всё равно работает.",
         "shareMindMapHeadline": "То, к чему я возвращаюсь снова",
         "shareMindMapCaption": "Один круг на каждое, что вернулось, размером с его частоту. Ни имён, ни слов — только форма.",
+        "mindMapSourceNames": "Имена и места",
+        "mindMapSourceThreads": "Нити",
+        "mindMapThreadsIntro": "Последние 30 дней как одна карта, нарисованная только из твоих слов.",
+        "mindMapThreadsDraw": "Нарисовать карту",
+        "mindMapThreadsRedraw": "Нарисовать заново",
+        "mindMapThreadsDrawing": "Рисую по твоим записям…",
+        "mindMapThreadsEmpty": "Несколько записей за последний месяц — и будет что нарисовать.",
+        "mindMapThreadsUnavailable": "Рисование на этом телефоне пока недоступно.",
+        "mindMapThreadsCenterFallback": "Последние 30 дней",
+        "mindMapThreadsThemesNote": "В этот раз ничего не нарисовано — вот слова, которые возвращались снова и снова.",
+        "mindMapThreadsCenterHint": "Открывает каждую запись на карте",
     ]
 }

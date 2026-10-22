@@ -623,5 +623,5 @@ public enum Copy {
         shareProofBody,
         shareMindMapHeadline,
         shareMindMapCaption,
-    ]
+    ] + threadsStrings
 }

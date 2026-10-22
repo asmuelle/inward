@@ -18,6 +18,7 @@ struct RootView: View {
     private let reflectionProvider: any ReflectionProviding
     private let reviewProvider: any WeeklyReviewProviding
     private let questionProvider: any JournalQuestionProviding
+    private let mapProvider: any MindMapProviding
     /// Spoken-recap dependencies — present only when the platform supports them.
     /// They engage solely when the opt-in setting is on (see `makeCoordinator`).
     private let summaryProvider: any CaptureSummaryProviding
@@ -75,6 +76,7 @@ struct RootView: View {
         reflectionProvider: any ReflectionProviding,
         reviewProvider: any WeeklyReviewProviding,
         questionProvider: any JournalQuestionProviding,
+        mapProvider: any MindMapProviding,
         entityExtractor: any EntityExtracting,
         embedder: any TextEmbedding,
         summaryProvider: any CaptureSummaryProviding,
@@ -87,6 +89,7 @@ struct RootView: View {
         self.reflectionProvider = reflectionProvider
         self.reviewProvider = reviewProvider
         self.questionProvider = questionProvider
+        self.mapProvider = mapProvider
         self.summaryProvider = summaryProvider
         self.synthesizer = synthesizer
         _model = State(initialValue: TimelineModel(store: store))
@@ -398,7 +401,9 @@ struct RootView: View {
                 synthesisAllowed: !paywall.isInsightLocked
             ))
         case .mindMap:
-            MindMapView(store: store)
+            // The screen is Pro-gated at `beginMindMap`; the flag is belt and
+            // braces so a drawn map can never be synthesized without it.
+            MindMapView(store: store, mapProvider: mapProvider, synthesisAllowed: !paywall.isInsightLocked)
         }
     }
 

@@ -175,5 +175,16 @@ extension Translations {
         "shareProofBody": "Parlato o scritto, resta sul dispositivo che ha ascoltato. Puoi verificarlo: spegni tutto e funziona ancora.",
         "shareMindMapHeadline": "Ciò a cui torno sempre",
         "shareMindMapCaption": "Un cerchio per ogni cosa tornata, grande quanto la sua frequenza. Nessun nome, nessuna parola — solo la forma.",
+        "mindMapSourceNames": "Nomi e luoghi",
+        "mindMapSourceThreads": "Fili",
+        "mindMapThreadsIntro": "Gli ultimi 30 giorni in una sola mappa, disegnata solo dalle tue parole.",
+        "mindMapThreadsDraw": "Disegna la mappa",
+        "mindMapThreadsRedraw": "Disegna di nuovo",
+        "mindMapThreadsDrawing": "Disegno dalle tue voci…",
+        "mindMapThreadsEmpty": "Qualche voce dell’ultimo mese e ci sarà una mappa da disegnare.",
+        "mindMapThreadsUnavailable": "Il disegno non è ancora pronto su questo telefono.",
+        "mindMapThreadsCenterFallback": "Gli ultimi 30 giorni",
+        "mindMapThreadsThemesNote": "Questa volta non è stato disegnato nulla — queste sono le parole che continuavano a tornare.",
+        "mindMapThreadsCenterHint": "Apre ogni voce sulla mappa",
     ]
 }

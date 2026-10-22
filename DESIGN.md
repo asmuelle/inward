@@ -110,6 +110,14 @@ All tables live in the single SQLCipher database. No row ever leaves the device 
 5. An answer with no valid citation, a citation outside the retrieved set, regulated vocabulary, or lecture-length prose is regenerated once; a second failure degrades to the plain retrieval list. The model's own "not in the entries" flag is honoured without retry.
 6. Each question is stateless — no history, no conversation — which keeps the surface a re-reading of the writer's own words rather than a companion. Synthesis is part of the paid understanding layer; the retrieved entries stay readable underneath in every state.
 
+### 3c. Threads map (a month drawn as a mind map)
+1. The mind map screen (Pro-gated at `beginMindMap`) has two sources: **Names & places**, the deterministic constellation of extracted entities, and **Threads**, a map the on-device model draws on request — never on every visit.
+2. On "Draw the map", the app assembles the last 30 days from precomputed summaries, newest first, and `MindMapContext.fitting` trims the oldest beyond a 4K-token budget. Nothing outside those entries is citable.
+3. `MindMapPipeline` runs the crisis gate over every summary before any model call; a match shows static resources only (invariant #5).
+4. `ReflectKit` draws a @Generable `MindMap`: a center phrase, two to six branches, each with up to four leaves in the writer's own words, every branch and leaf citing entry numbers resolved through the weekly review's numbering.
+5. A map with an empty node, an uncited node, a citation outside the month, a label over 60 characters, or regulated vocabulary is regenerated once; a second failure — or an unavailable or withheld model — degrades to deterministic recurring-theme counts drawn as a flat map (invariants #7 and #9).
+6. `RadialTreeLayout` (DesignSystem, pure geometry) places the center, a ring of branches, and fanned leaves; every node opens the entries it came from, and a list mode carries the same tree for VoiceOver and large type. The Threads map has no share card: it holds the user's own phrases, which never leave the phone.
+
 ### 4. Airplane-mode proof (onboarding + marketing surface)
 1. Onboarding invites the user to enable airplane mode and record their first entry.
 2. The proof screen shows: airplane-mode state, entry saved, transcript produced, and points to iOS App Privacy Report ("check it — no network activity").

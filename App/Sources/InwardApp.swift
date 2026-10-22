@@ -35,6 +35,7 @@ struct InwardApp: App {
                 reflectionProvider: Self.makeReflectionProvider(),
                 reviewProvider: Self.makeReviewProvider(),
                 questionProvider: Self.makeQuestionProvider(),
+                mapProvider: Self.makeMapProvider(),
                 entityExtractor: Self.makeEntityExtractor(),
                 embedder: SentenceTextEmbedder(),
                 summaryProvider: Self.makeSummaryProvider(),
@@ -57,6 +58,13 @@ struct InwardApp: App {
     /// retrieval list (handled in the pipeline), so the search is never empty.
     private static func makeQuestionProvider() -> any JournalQuestionProviding {
         FoundationModelsJournalQuestionProvider()
+    }
+
+    /// On-device Threads map drawing via FoundationModels. When Apple
+    /// Intelligence is unavailable the map degrades to deterministic recurring
+    /// themes (handled in the pipeline), so the surface is never empty.
+    private static func makeMapProvider() -> any MindMapProviding {
+        FoundationModelsMindMapProvider()
     }
 
     /// Per-entry questions use the same on-device model and are always reached

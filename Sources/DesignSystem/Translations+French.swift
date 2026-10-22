@@ -174,5 +174,16 @@ extension Translations {
         "shareProofBody": "Parlé ou écrit, tout reste sur l’appareil qui a écouté. Tu peux vérifier : coupe tout, ça marche encore.",
         "shareMindMapHeadline": "Ce vers quoi je reviens toujours",
         "shareMindMapCaption": "Un cercle pour chaque chose revenue, dimensionné selon sa fréquence. Aucun nom, aucun mot — juste la forme.",
+        "mindMapSourceNames": "Noms & lieux",
+        "mindMapSourceThreads": "Fils",
+        "mindMapThreadsIntro": "Les 30 derniers jours en une seule carte, dessinée uniquement à partir de tes mots.",
+        "mindMapThreadsDraw": "Dessiner la carte",
+        "mindMapThreadsRedraw": "Dessiner à nouveau",
+        "mindMapThreadsDrawing": "Dessin à partir de tes entrées…",
+        "mindMapThreadsEmpty": "Quelques entrées du dernier mois, et il y aura une carte à dessiner.",
+        "mindMapThreadsUnavailable": "Le dessin n’est pas encore prêt sur ce téléphone.",
+        "mindMapThreadsCenterFallback": "Les 30 derniers jours",
+        "mindMapThreadsThemesNote": "Rien n’a été dessiné cette fois — voici les mots qui revenaient sans cesse.",
+        "mindMapThreadsCenterHint": "Ouvre chaque entrée de la carte",
     ]
 }

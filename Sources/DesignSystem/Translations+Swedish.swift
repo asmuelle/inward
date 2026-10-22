@@ -174,5 +174,16 @@ extension Translations {
         "shareProofBody": "Talat eller skrivet stannar det på enheten som lyssnade. Du kan kontrollera det: stäng av allt, det fungerar ändå.",
         "shareMindMapHeadline": "Det jag återkommer till",
         "shareMindMapCaption": "En cirkel för allt som kom tillbaka, lika stor som hur ofta. Inga namn, inga ord — bara formen.",
+        "mindMapSourceNames": "Namn och platser",
+        "mindMapSourceThreads": "Trådar",
+        "mindMapThreadsIntro": "De senaste 30 dagarna som en enda karta, ritad enbart av dina egna ord.",
+        "mindMapThreadsDraw": "Rita kartan",
+        "mindMapThreadsRedraw": "Rita igen",
+        "mindMapThreadsDrawing": "Ritar utifrån dina anteckningar…",
+        "mindMapThreadsEmpty": "Några anteckningar från den senaste månaden, så finns det en karta att rita.",
+        "mindMapThreadsUnavailable": "Ritandet är inte redo på den här telefonen ännu.",
+        "mindMapThreadsCenterFallback": "De senaste 30 dagarna",
+        "mindMapThreadsThemesNote": "Inget ritades den här gången — det här är orden som fortsatte komma tillbaka.",
+        "mindMapThreadsCenterHint": "Öppnar varje anteckning på kartan",
     ]
 }

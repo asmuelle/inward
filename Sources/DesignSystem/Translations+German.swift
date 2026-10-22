@@ -175,5 +175,16 @@ extension Translations {
         "shareProofBody": "Gesprochen oder geschrieben, bleibt es auf dem Gerät, das zugehört hat. Du kannst es prüfen: schalte alles aus, es funktioniert weiter.",
         "shareMindMapHeadline": "Worauf ich immer wieder zurückkomme",
         "shareMindMapCaption": "Ein Kreis für alles, was wiederkam, so groß wie seine Häufigkeit. Keine Namen, keine Worte — nur die Form.",
+        "mindMapSourceNames": "Namen & Orte",
+        "mindMapSourceThreads": "Fäden",
+        "mindMapThreadsIntro": "Die letzten 30 Tage als eine Karte, nur aus deinen eigenen Worten gezeichnet.",
+        "mindMapThreadsDraw": "Karte zeichnen",
+        "mindMapThreadsRedraw": "Noch einmal zeichnen",
+        "mindMapThreadsDrawing": "Zeichne aus deinen Einträgen…",
+        "mindMapThreadsEmpty": "Ein paar Einträge aus dem letzten Monat, und es gibt eine Karte zu zeichnen.",
+        "mindMapThreadsUnavailable": "Zeichnen ist auf diesem Telefon noch nicht bereit.",
+        "mindMapThreadsCenterFallback": "Die letzten 30 Tage",
+        "mindMapThreadsThemesNote": "Diesmal wurde nichts gezeichnet — das sind die Worte, die immer wiederkamen.",
+        "mindMapThreadsCenterHint": "Öffnet jeden Eintrag auf der Karte",
     ]
 }

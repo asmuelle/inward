@@ -101,6 +101,15 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
+    func testThreadsMap() async throws {
+        let store = try await Self.seededStore()
+        let model = GeneratedMindMapModel(store: store, provider: MockMindMapProvider(), referenceDate: Self.now)
+        await model.draw()
+        attach("13-threads-map") {
+            NavigationStack { GeneratedMindMapView(model: model, store: store) }
+        }
+    }
+
     func testShareCardMindMap() {
         attachCard("12-share-mindmap") { MindMapShareCard(graph: Self.shareGraph) }
     }

@@ -174,5 +174,16 @@ extension Translations {
         "shareProofBody": "Hablado o escrito, se queda en el aparato que escuchó. Puedes comprobarlo: apaga todo y sigue funcionando.",
         "shareMindMapHeadline": "Aquello a lo que siempre vuelvo",
         "shareMindMapCaption": "Un círculo por cada cosa que volvió, del tamaño de su frecuencia. Sin nombres, sin palabras: solo la forma.",
+        "mindMapSourceNames": "Nombres y lugares",
+        "mindMapSourceThreads": "Hilos",
+        "mindMapThreadsIntro": "Los últimos 30 días en un solo mapa, dibujado solo con tus propias palabras.",
+        "mindMapThreadsDraw": "Dibujar el mapa",
+        "mindMapThreadsRedraw": "Dibujar de nuevo",
+        "mindMapThreadsDrawing": "Dibujando a partir de tus entradas…",
+        "mindMapThreadsEmpty": "Unas cuantas entradas del último mes y habrá un mapa que dibujar.",
+        "mindMapThreadsUnavailable": "Dibujar aún no está listo en este teléfono.",
+        "mindMapThreadsCenterFallback": "Los últimos 30 días",
+        "mindMapThreadsThemesNote": "Esta vez no se dibujó nada: estas son las palabras que siguieron volviendo.",
+        "mindMapThreadsCenterHint": "Abre todas las entradas del mapa",
     ]
 }

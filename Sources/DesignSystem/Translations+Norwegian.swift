@@ -174,5 +174,16 @@ extension Translations {
         "shareProofBody": "Talt eller skrevet, blir det på enheten som hørte etter. Du kan sjekke det: slå av alt, og det virker fortsatt.",
         "shareMindMapHeadline": "Det jeg stadig vender tilbake til",
         "shareMindMapCaption": "Én sirkel for alt som kom igjen, like stor som hvor ofte. Ingen navn, ingen ord — bare formen.",
+        "mindMapSourceNames": "Navn og steder",
+        "mindMapSourceThreads": "Tråder",
+        "mindMapThreadsIntro": "De siste 30 dagene som ett kart, tegnet bare av dine egne ord.",
+        "mindMapThreadsDraw": "Tegn kartet",
+        "mindMapThreadsRedraw": "Tegn på nytt",
+        "mindMapThreadsDrawing": "Tegner fra innleggene dine…",
+        "mindMapThreadsEmpty": "Noen innlegg fra den siste måneden, så er det et kart å tegne.",
+        "mindMapThreadsUnavailable": "Tegning er ikke klar på denne telefonen ennå.",
+        "mindMapThreadsCenterFallback": "De siste 30 dagene",
+        "mindMapThreadsThemesNote": "Ingenting ble tegnet denne gangen — dette er ordene som stadig kom tilbake.",
+        "mindMapThreadsCenterHint": "Åpner hvert innlegg på kartet",
     ]
 }

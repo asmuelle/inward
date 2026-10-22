@@ -174,5 +174,16 @@ extension Translations {
         "shareProofBody": "Talt eller skrevet bliver det på enheden, der lyttede. Du kan tjekke det: sluk for alt, og det virker stadig.",
         "shareMindMapHeadline": "Det, jeg vender tilbage til",
         "shareMindMapCaption": "Én cirkel for alt, der kom igen, lige så stor som hvor ofte. Ingen navne, ingen ord — kun formen.",
+        "mindMapSourceNames": "Navne og steder",
+        "mindMapSourceThreads": "Tråde",
+        "mindMapThreadsIntro": "De sidste 30 dage som ét kort, tegnet alene ud fra dine egne ord.",
+        "mindMapThreadsDraw": "Tegn kortet",
+        "mindMapThreadsRedraw": "Tegn igen",
+        "mindMapThreadsDrawing": "Tegner ud fra dine indlæg…",
+        "mindMapThreadsEmpty": "Et par indlæg fra den sidste måned, så er der et kort at tegne.",
+        "mindMapThreadsUnavailable": "Tegning er ikke klar på denne telefon endnu.",
+        "mindMapThreadsCenterFallback": "De sidste 30 dage",
+        "mindMapThreadsThemesNote": "Intet blev tegnet denne gang — det er ordene, der blev ved med at komme igen.",
+        "mindMapThreadsCenterHint": "Åbner hvert indlæg på kortet",
     ]
 }
